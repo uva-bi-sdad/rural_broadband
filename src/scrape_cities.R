@@ -94,7 +94,7 @@ us_cities$state <- as.factor(us_cities$state)
 #------------------------------------ Write out 
 #
 
-write_csv(us_cities, path = "/Users/tpristavec/Documents/GitLab/rural_broadband/src/us_cities.csv", append = FALSE, col_names = TRUE)
+write_csv(us_cities, path = "./src/us_cities.csv", append = FALSE, col_names = TRUE)
 
 
 #
