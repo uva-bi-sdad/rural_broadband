@@ -11,10 +11,16 @@ library(dplyr)
 #------------------------------------------- Read in data
 #
 
-ineligibility <- st_read("~/Broadband_Ineligible/RD_BROADBAND_IELG_PRODUCTION.shp", 
+#ineligibility <- st_read("~/Broadband_Ineligible/RD_BROADBAND_IELG_PRODUCTION.shp", 
+#                         stringsAsFactors = FALSE)
+
+ineligibility <- st_read("data/rus_broadband_ineligibility/RD_BROADBAND_IELG_PRODUCTION.shp", 
                          stringsAsFactors = FALSE)
 
-us_states <- st_read("~/cb_2016_us_state_20m/cb_2016_us_state_20m.shp", 
+#us_states <- st_read("~/cb_2016_us_state_20m/cb_2016_us_state_20m.shp", 
+#                     stringsAsFactors = FALSE)
+
+us_states <- st_read("data/census_geo_cb/cb_2016_us_state_20m.shp", 
                      stringsAsFactors = FALSE)
 
 
@@ -38,8 +44,12 @@ ineligibility <- st_transform(ineligibility, project)
 # Virignia
 va <- us_states[us_states$NAME == "Virginia", ]
 va <- va %>% select(geometry)
+intersection <- st_intersection(va, ineligibility)
 
-plot(st_intersection(va, ineligibility))
+plot(va, reset = FALSE)
+plot(intersection, add = TRUE)
+
+#plot(st_intersection(va, ineligibility), add=T)
 
 # Georgia
 ga <- us_states[us_states$NAME == "Georgia", ]
