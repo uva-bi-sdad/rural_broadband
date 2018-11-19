@@ -28,8 +28,7 @@ ineligibility <- st_transform(ineligibility, project)
 
 # Notes: This runs and *looks* like it makes sense (cf. ilegibility map and state maps separately), but I still get the following warning: 
 # although coordinates are longitude/latitude, st_intersection assumes that they are planar
-# Warning message:
-#  attribute variables are assumed to be spatially constant throughout all geometries 
+# Explanation here (CTRL+F): https://r-spatial.github.io/sf/articles/sf6.html. 
 
 # Virignia
 va <- us_states[us_states$NAME == "Virginia", ]
@@ -43,6 +42,6 @@ plot(intersection, add = TRUE)
 
 # Ggplot
 ggplot() +
-  geom_sf(data = va) +
-  geom_sf(data = st_intersection(va, ineligibility), fill = "orange") + 
+  geom_sf(data = st_geometry(va)) +
+  geom_sf(data = st_intersection(st_geometry(va), st_geometry(ineligibility)), fill = "orange") + 
   labs(title = "Map of RUS program ineligibility in VA")
