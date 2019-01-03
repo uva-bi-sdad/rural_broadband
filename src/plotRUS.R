@@ -33,11 +33,11 @@ census_api_key("853b2a1e71aa0aff0f3db966545e8898c73f0772")
 
 proj4string=CRS('+proj=longlat +ellps=WGS84')
 
-states <- readOGR(dsn="cb_2017_us_state_20m",layer="cb_2017_us_state_20m")
+states <- readOGR(dsn="data/census_geo_cb/",layer="cb_2017_us_state_20m")
 states <- spTransform(states,proj4string)
 state_VA <- states[states@data$NAME=="Virginia",]
 
-urbanized_areas <- readOGR(dsn="tl_2010_us_uac10",layer="tl_2010_us_uac10")
+urbanized_areas <- readOGR(dsn="data/census_2010_urbanized_areas/",layer="tl_2010_us_uac10")
 urbanized_areas <- spTransform(urbanized_areas,proj4string)
 # filter only Ubranized Areas, exclude Urban Clusters
 urbanized_areas <- urbanized_areas[urbanized_areas@data$UATYP10=="U",]
@@ -49,7 +49,7 @@ urbanized_areas_VA <- urbanized_areas[!is.na(test$NAME),]
 #plot(state_VA)
 #plot(urbanized_areas_VA,add=TRUE,col="red")
 
-places <- readOGR(dsn="gz_2010_51_160_00_500k",layer="gz_2010_51_160_00_500k")
+places <- readOGR(dsn="data/census_2010_places/VA/",layer="gz_2010_51_160_00_500k")
 places <- spTransform(places,proj4string)
 
 # get population for all Places in VA and join to shapefile
