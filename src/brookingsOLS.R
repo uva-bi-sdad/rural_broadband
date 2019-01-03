@@ -60,7 +60,7 @@ tract_data <- census_tracts@data %>% select(GEOID,STATEFP,COUNTYFP,NAME)
 # Fixed Broadband Deployment Data FCC Form 477, latest data as of December 31, 2016
 # data at https://www.fcc.gov/general/broadband-deployment-data-fcc-form-477 [need for 25 Mbps availability by block]
 # read in the availability dataset for December 2015 to match the Brookings report (US - Fixed with Satellite - Dec 15v2)
-fcc_full <- read.csv("fcc_availability/fbd_us_with_satellite_dec2015_v2.csv")
+fcc_full <- read.csv("data/fcc_availability/fbd_us_with_satellite_dec2015_v2.csv")
 # metadata at https://www.fcc.gov/general/explanation-broadband-deployment-data
 # BlockCode is Census block code
 # Provider_Id is filing number for internet provider
@@ -87,7 +87,7 @@ fcc_availability <- fcc_full %>% group_by(blockcode=BlockCode) %>%
 # data by year, 2015:
 # https://www.fcc.gov/reports-research/maps/residential-fixed-connections-10-mbps-1-mbps-december-2015/
 
-fcc_subscription <- read.csv("fcc_subscription/tract_map_dec_2015.csv")
+fcc_subscription <- read.csv("data/fcc_subscription/tract_map_dec_2015.csv")
 # metadata: (73,767 rows)
 # tractcode is Census Tract code
 # pcat_all is quinitles of Residential Fixed High-Speed Connections over 200kbps
