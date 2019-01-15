@@ -203,7 +203,7 @@ reg_median3 <- lm(median_val ~ available + subscription_continuous +
                   hs_or_less + age_65_older + hispanic + black + foreign + rural + poverty + density + family +
                   rate_occupied + rate_owned + rate_single + median_yrbuilt,
                   data = nomiss)
-stargazer(reg_median1, reg_median2, reg_median3, digits = 2, type = "text")
+stargazer(reg_median1, reg_median2, reg_median3, no.space = TRUE, digits = 2, type = "text")
 
 
 #
@@ -216,6 +216,20 @@ autoplot(reg_median3)
 # Scale-Location: Horizontal line with equal point spread indicates homoskedasticity. --> Definitely heteroskedastic. 
 # Residuals vs leverage: Definitely an influential point. 
 
+# High leverage & what happens when removed: Nothing much. No reason to exclude.
+augmodel <- augment(reg_median3)
+augmodel %>% top_n(3, wt = .cooksd)
+nomiss[22547, ] # This is the weird outlier on every plot, https://censusreporter.org/profiles/14000US17031030702-census-tract-30702-cook-il/
+
+test <- nomiss %>% filter(name2 != "Census Tract 307.02, Cook County, Illinois")
+reg_median3a <- lm(log_medianval ~ available + subscription_continuous + 
+                     hs_or_less + age_65_older + hispanic + black + foreign +
+                     rural + poverty + density + family,
+                   data = test)
+summary(reg_median3a)
+stargazer(reg_median3, reg_median3a, digits = 2, type = "text")
+autoplot(reg_median3a)
+
 # Get robust standard errors
 # To add robust SE to Stargazer output, see https://economictheoryblog.com/2018/05/18/robust-standard-errors-in-stargazer/
 url_robust <- "https://raw.githubusercontent.com/IsidoreBeautrelet/economictheoryblog/master/robust_summary.R"
@@ -224,8 +238,12 @@ eval(parse(text = getURL(url_robust, ssl.verifypeer = FALSE)), envir = .GlobalEn
 summary(reg_median3)
 summary(reg_median3, robust = TRUE)
 
-# Try depvar log transform
-nomiss5$log_medianval <- log(nomiss$median_val)
+
+#
+# OLS with depvar log transform  -------------------------------------------------------------------------------------
+#
+
+nomiss$log_medianval <- log(nomiss$median_val)
 
 reg_median1 <- lm(log_medianval ~ available + subscription_continuous,
                   data = nomiss)
@@ -236,23 +254,23 @@ reg_median3 <- lm(log_medianval ~ available + subscription_continuous +
                   hs_or_less + age_65_older + hispanic + black + foreign + rural + poverty + density + family +
                   rate_occupied + rate_owned + rate_single + median_yrbuilt,
                   data = nomiss)
-stargazer(reg_median1, reg_median2, reg_median3, digits = 2, type = "text")
 
+robust_se1 <- as.vector(summary(reg_median1, robust = T)$coefficients[, "Std. Error"])
+robust_se2 <- as.vector(summary(reg_median2, robust = T)$coefficients[, "Std. Error"])
+robust_se3 <- as.vector(summary(reg_median3, robust = T)$coefficients[, "Std. Error"])
+stargazer(reg_median1, reg_median2, reg_median3, digits = 2, no.space = TRUE, type = "text", se = list(robust_se1, robust_se2, robust_se3))
+
+# Exponentiate the coefficient, subtract one from this number, and multiply by 100. 
+# This gives the percent increase (or decrease) in the response for every one-unit increase in the independent variable. 
+myfunction <- function(x){
+  (exp(x)-1)*100
+}
+
+stargazer(reg_median1, reg_median2, reg_median3, digits = 2, no.space = TRUE, type = "text", se = list(robust_se1, robust_se2, robust_se3),
+          apply.coef = myfunction)
+
+# Diagnostics look better
 autoplot(reg_median3)
-
-# High leverage & what happens when removed: Nothing much. No reason to exclude.
-augmodel <- augment(reg_median3)
-augmodel %>% top_n(3, wt = .cooksd)
-nomiss[22547, ] # This is the weird outlier on every plot, https://censusreporter.org/profiles/14000US17031030702-census-tract-30702-cook-il/
-
-test <- nomiss %>% filter(name2 != "Census Tract 307.02, Cook County, Illinois")
-reg_median3a <- lm(log_medianval ~ available + subscription_continuous + 
-                     hs_or_less + age_65_older + hispanic + black + foreign +
-                     rural + poverty + density + family,
-                     data = test)
-summary(reg_median3a)
-stargazer(reg_median3, reg_median3a, digits = 2, type = "text")
-autoplot(reg_median3a)
 
 
 #
@@ -262,13 +280,13 @@ autoplot(reg_median3a)
 nomiss$log_rentgrossmed <- log(nomiss$rent_mediangross)
 nomiss$log_rentaggmed <- log(nomiss$rent_aggreggross)
 
-reg_median1 <- lm(rent_mediangross ~ available + subscription_continuous,
+reg_median1 <- lm(log_rentgrossmed ~ available + subscription_continuous,
                   data = nomiss)
-reg_median2 <- lm(rent_mediangross ~ available + subscription_continuous + 
+reg_median2 <- lm(log_rentgrossmed ~ available + subscription_continuous + 
                     hs_or_less + age_65_older + hispanic + black + foreign + rural + poverty + density + family,
                   data = nomiss)
-reg_median3 <- lm(rent_mediangross ~ available + subscription_continuous + 
+reg_median3 <- lm(log_rentgrossmed ~ available + subscription_continuous + 
                     hs_or_less + age_65_older + hispanic + black + foreign + rural + poverty + density + family +
                     rate_occupied + rate_owned + rate_single + median_yrbuilt,
                   data = nomiss)
-stargazer(reg_median1, reg_median2, reg_median3, digits = 2, type = "text")
+stargazer(reg_median1, reg_median2, reg_median3, no.space = TRUE, digits = 2, type = "text")
