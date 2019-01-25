@@ -11,6 +11,8 @@ library(stargazer)
 library(broom)
 library(ggfortify)
 library(RCurl)
+library(MASS)
+library(car)
 
 options(scipen = 999)
 census_api_key("548d39e0315b591a0e9f5a8d9d6c1f22ea8fafe0") # Teja's key
@@ -29,29 +31,29 @@ head(tract_data5)
 #
 
 # Housing units
-View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B00002", case.sensitive=F)@results)
-View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25001", case.sensitive=F)@results)
+# View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B00002", case.sensitive=F)@results)
+# View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25001", case.sensitive=F)@results)
 # B00002_001 Unweighted Sample Housing Units Total
 # B25001_001 Housing Units Total
 
 # Occupancy status (Universe: Housing units)
-View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25002", case.sensitive=F)@results)
+# View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25002", case.sensitive=F)@results)
 # B25002_001 Occupancy Status Total
 # B25002_002 Occupancy Status: Occupied
 # B25002_003 Occupancy Status: Vacant
 
 # Tenure (Universe: Occupied housing units)
-View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25003", case.sensitive=F)@results)
+# View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25003", case.sensitive=F)@results)
 # B25003_001 Tenure Total
 # B25003_002 Tenure: Owner occupied
 # B25003_003 Tenure: Renter occupied
 
 # Median value ($) for owner-occupied housing units
-View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25077", case.sensitive=F)@results)
+# View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25077", case.sensitive=F)@results)
 # B25077_001 Median Value (Dollars) for Owner-Occupied Housing Units
 
 # Units in structure (Universe: Housing units)
-View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25024", case.sensitive=F)@results)
+# View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25024", case.sensitive=F)@results)
 # B25024_001	Units in Structure	Total:
 # B25024_002	Units in Structure	1, detached
 # B25024_003	Units in Structure	1, attached
@@ -65,11 +67,11 @@ View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B2502
 # B25024_011	Units in Structure	Boat, RV, van, etc
 
 # Median year structure built (Universe: Housing units)
-View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25035", case.sensitive=F)@results)
+# View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25035", case.sensitive=F)@results)
 #B25035_001 Median year structure built
 
 # Bedrooms (Universe: Housing units)
-View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25041", case.sensitive=F)@results)
+# View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25041", case.sensitive=F)@results)
 # B25041_001	Total:
 # B25041_002	No bedroom
 # B25041_003	1 bedroom
@@ -79,17 +81,17 @@ View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B2504
 # B25041_007	5 or more bedrooms
 
 # Contract rent (Universe: Renter-occupied housing units)
-View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25056", case.sensitive=F)@results)
+# View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25056", case.sensitive=F)@results)
 
 # Gross rent (Universe: Renter-occupied housing units)
-View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25063", case.sensitive=F)@results)
+# View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25063", case.sensitive=F)@results)
 
 # Median gross rent ($) (Universe: Renter-occupied housing units paying cash rent)
-View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25064", case.sensitive=F)@results)
+# View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25064", case.sensitive=F)@results)
 # B25064_001 Median Gross Rent (Dollars)
 
 # Aggregate gross rent ($)  (Universe: Renter-occupied housing units paying cash rent)
-View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25065", case.sensitive=F)@results)
+# View(acs.lookup(endyear = 2015, span = 5, dataset = "acs", table.number = "B25065", case.sensitive=F)@results)
 # B25065_001 Aggregate gross rent (dollars)
 
 
@@ -243,6 +245,11 @@ summary(reg_median3, robust = TRUE)
 # OLS with depvar log transform  -------------------------------------------------------------------------------------
 #
 
+# Run Box-Cox to figure out the best outcome transformation
+bc <- boxcox(reg_median3, lambda = seq(-3, 3))
+lambda <- bc$x[which.max(bc$y)]
+# Lambda is close to 0 (-0.090909...) --> log transform.
+
 nomiss$log_medianval <- log(nomiss$median_val)
 
 reg_median1 <- lm(log_medianval ~ available + subscription_continuous,
@@ -271,6 +278,18 @@ stargazer(reg_median1, reg_median2, reg_median3, digits = 2, no.space = TRUE, ty
 
 # Diagnostics look better
 autoplot(reg_median3)
+
+# Outlandish estimates because of variable skewness?
+hist(nomiss$black)
+hist(nomiss$hispanic)
+hist(nomiss$poverty)
+hist(nomiss$family)
+hist(nomiss$foreign)
+hist(nomiss$age_65_older)
+hist(nomiss$hs_or_less)
+hist(nomiss$rate_owned)
+
+# Yes, but can't do Box-Tidwell/log/... because of 0 values on all variables.
 
 
 #
