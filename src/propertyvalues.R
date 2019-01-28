@@ -11,8 +11,8 @@ library(stargazer)
 library(broom)
 library(ggfortify)
 library(RCurl)
-library(MASS)
 library(car)
+library(purrr)
 
 options(scipen = 999)
 census_api_key("548d39e0315b591a0e9f5a8d9d6c1f22ea8fafe0") # Teja's key
@@ -246,7 +246,7 @@ summary(reg_median3, robust = TRUE)
 #
 
 # Run Box-Cox to figure out the best outcome transformation
-bc <- boxcox(reg_median3, lambda = seq(-3, 3))
+bc <- MASS::boxcox(reg_median3, lambda = seq(-3, 3))
 lambda <- bc$x[which.max(bc$y)]
 # Lambda is close to 0 (-0.090909...) --> log transform.
 

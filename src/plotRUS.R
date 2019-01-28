@@ -63,7 +63,7 @@ places_over20k <- places[places_VA2$value > 20000,]
 
 plot(state_VA)
 plot(urbanized_areas_VA,add=TRUE,col="red")
-plot(places_over20k,add=TRUE,col="green")
+plot(places_over20k,add=TRUE,col="green") 
 
 # NOTE: ineligible areas on Rural Development website looks nearly the same as
 # map of 2010 urbanized areas + places
