@@ -40,19 +40,18 @@ plot(st_geometry(urban))
 #
 
 # Get places and GEOIDs
-proj4string=CRS('+proj=longlat +ellps=WGS84')
+proj4string <- CRS('+proj=longlat +ellps=WGS84')
 places <- readOGR(dsn = "data/census_2010_places/VA/", layer = "gz_2010_51_160_00_500k")
 places <- spTransform(places, proj4string)
 
-place_pop <- get_decennial(geography = "place", state = "Virginia", variables = "P001001", year = 2010, cache_table = TRUE, 
-                           output = "wide")
+place_pop <- get_decennial(geography = "place", state = "VA", variables = "P001001", year = 2010, cache_table = TRUE)
 places_VA <- places@data
 places_VA$GEO_ID <- paste(places_VA$GEO_ID)
 places_VA$GEOID <- substr(places_VA$GEO_ID, nchar(places_VA$GEO_ID)-6, nchar(places_VA$GEO_ID))
-places_VA2 <- places_VA %>% left_join(place_pop, by="GEOID")
+places_VA2 <- places_VA %>% left_join(place_pop, by = "GEOID")
 
 # Filter places with population > 20,000
-places_over20k <- places[places_VA2$value > 20000,]
+places_over20k <- places[places_VA2$value > 20000, ]
 
 # Transform/match CRS
 over20k <- st_as_sf(places_over20k)
@@ -63,7 +62,7 @@ over20k <- st_transform(over20k, st_crs(stateVA))
 
 
 #
-# Get eligible and ineligible areas ----------------------------------------------------------------------------
+# Get eligible and ineligible areas --------------------------------------------------------------------------------------------
 #
 
 # Join 2 ineligible into 1
@@ -77,3 +76,26 @@ eligible <- st_difference(stateVA, st_union(ineligible))
 
 plot(st_geometry(stateVA))
 plot(st_geometry(eligible), add = TRUE, col = "blue")
+
+
+#
+# Check ----------------------------------------------------------------------------------------------------------------------------
+#
+
+summary(stateVA)
+summary(ineligible) 
+summary(eligible) 
+
+str(stateVA)
+str(ineligible)
+str(eligible)
+
+names(stateVA) # AFFGEOID, GEOID
+names(ineligible) # AFFGEOID, GEOID, GEOID10, GEO_ID
+names(eligible) # AFFGEOID, GEOID
+
+
+
+#
+# Get demographics ----------------------------------------------------------------------------------------------------------------------------
+#
