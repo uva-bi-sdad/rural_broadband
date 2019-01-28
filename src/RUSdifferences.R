@@ -1,7 +1,11 @@
 library(sf)
 library(tigris)
 library(tidycensus)
+library(dplyr)
+library(naniar)
 
+options(tigris_use_cache = TRUE)
+census_api_key("548d39e0315b591a0e9f5a8d9d6c1f22ea8fafe0") # Teja's key
 
 #
 # Get VA state map ----------------------------------------------------------------------------------------------
@@ -94,8 +98,71 @@ names(stateVA) # AFFGEOID, GEOID
 names(ineligible) # AFFGEOID, GEOID, GEOID10, GEO_ID
 names(eligible) # AFFGEOID, GEOID
 
+class(stateVA)
+class(ineligible)
+class(eligible)
 
 
 #
-# Get demographics ----------------------------------------------------------------------------------------------------------------------------
+# Get sociodemographics, adapted from Josh ----------------------------------------------------------------------------------------
 #
+
+# Get variables
+acs_vars <- c("B15003_001","B15003_002","B15003_003","B15003_004","B15003_005","B15003_006","B15003_007","B15003_008","B15003_009",
+              "B15003_010","B15003_011","B15003_012","B15003_013","B15003_014","B15003_015","B15003_016","B15003_017","B15003_018",
+              "B17020_001","B17020_002",
+              "B01001_001","B01001_020","B01001_021","B01001_022","B01001_023","B01001_024","B01001_025",
+              "B01001_044","B01001_045","B01001_046","B01001_047","B01001_048","B01001_049",
+              "B03003_001","B03003_003",
+              "B02001_001","B02001_003",
+              "B09019_002","B09019_003",
+              "B05002_001","B05002_013")
+
+acs_est <- get_acs(geography = "tract", state = "Virginia", variables = acs_vars, year = 2015, cache_table = TRUE,
+                    geometry = TRUE, keep_geo_vars = TRUE, output = "wide")
+
+# Compute rates
+acs_estimates <- acs_est %>% transmute(
+                    STATEFP = STATEFP,
+                    COUNTYFP = COUNTYFP,
+                    TRACTCE = TRACTCE,
+                    AFFGEOID = AFFGEOID, 
+                    GEOID = GEOID,
+                    population = B01001_001E,
+                    hs_or_less = (B15003_002E+B15003_003E+B15003_004E+B15003_005E+B15003_006E+B15003_007E+B15003_008E+B15003_009E+B15003_010E+
+                                    B15003_011E+B15003_012E+B15003_013E+B15003_014E+B15003_015E+B15003_016E+B15003_017E+B15003_018E) / B15003_001E,
+                    poverty = B17020_002E / B17020_001E,
+                    age_65_older = (B01001_020E+B01001_021E+B01001_022E+B01001_023E+B01001_024E+B01001_025E+
+                                      B01001_044E+B01001_045E+B01001_046E+B01001_047E+B01001_048E+B01001_049E)/ B01001_001E,
+                    hispanic = B03003_003E / B03003_001E,
+                    black = B02001_003E / B02001_001E,
+                    family = B09019_003E / B09019_002E,
+                    foreign = B05002_013E / B05002_001E)
+
+# Join with areas, with geography
+ineligible_acs <- st_join(ineligible, acs_estimates, left = TRUE)
+eligible_acs <- st_join(eligible, acs_estimates, left = TRUE)
+
+gg_miss_var(ineligible_acs)
+gg_miss_var(eligible_acs)
+
+# Join with areas, without geography
+# head(ineligible$GEOID)
+# head(eligible$GEOID)
+# head(acs_estimates$GEOID)
+# 
+# names(ineligible)
+# names(eligible)
+# 
+# ineligible1 <- ineligible
+# st_geometry(ineligible1) <- NULL
+# eligible1 <- eligible
+# st_geometry(eligible1) <- NULL
+# acs_estimates1 <- acs_estimates
+# st_geometry(acs_estimates1) <- NULL
+# 
+# ineligible_acs <- ineligible %>% left_join(acs_estimates1, by = "GEOID")
+# eligible_acs <- eligible %>% left_join(acs_estimates1, by = "GEOID")
+
+
+
