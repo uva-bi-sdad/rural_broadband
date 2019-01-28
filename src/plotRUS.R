@@ -74,4 +74,71 @@ plot(places_over20k,add=TRUE,col="green")
 # compare demographic differences between eligible and uneligible regions
 
 
+#
+# Compare socidemographics: IN PROGRESS -----------------------------------------------------------------------------------
+#
+
+library(stringr)
+
+census_api_key("548d39e0315b591a0e9f5a8d9d6c1f22ea8fafe0") # Teja's key
+
+# Conver Josh's objects to sf
+urban <- st_as_sf(urbanized_areas_VA)
+over20k <- st_as_sf(places_over20k)
+stateVA <- st_as_sf(state_VA)
+
+# Check CRS
+st_crs(urban)
+st_crs(over20k)
+st_crs(stateVA)
+
+# Join maps for both ineligibility criteria and plot
+ineligible <- st_join(urban, over20k)
+
+plot(stateVA$geometry)
+plot(ineligible, add = TRUE, col = "blue")
+
+# Invert to get eligible
+eligible <- st_difference(stateVA, st_union(ineligible))
+
+# Check
+plot(st_geometry(ineligible1))
+plot(st_geometry(eligible))
+
+summary(ineligible) # GEOID10 (5 numbers), GEO_ID (16 numbers/characters), AFFGEOID (11 numbers/characters), and GEOID (2 numbers)
+summary(eligible) # AFFGEOID (11 numbers/characters) and GEOID (2 numbers)
+
+str(ineligible)
+str(eligible)
+
+names(eligible)
+names(ineligible)
+
+# Sociodemographics
+tract_data5 <- read.csv("data/broadband_acs_by_census_tract_2015.csv") # Josh's tract data file
+
+demographics <- tract_data5 %>% dplyr::filter(STATEFP == 51)
+demographics$GEOID <- as.numeric(demographics$GEOID)
+
+eligible$GEOID <- as.numeric(eligible$GEOID)
+
+head(demographics)
+head(ineligible)
+
+names(demographics)
+names(ineligible)
+
+# Is this it?
+# https://www2.census.gov/acs2010_5yr/summaryfile/ACS_2006-2010_SF_Tech_Doc.pdf
+# ineligible are from census and have GEOID10
+# demographics are from ACS and have GEOID 
+
+demographics <- demographics %>% mutate(GEOID10 = str_sub(GEOID, 7, 11))
+demographics$GEOID10 <- as.numeric(demographics$GEOID10)
+
+class(demographics$GEOID10)
+class(ineligible$GEOID10)
+
+ineligible$GEOID10 <- as.integer(ineligible$GEOID10)
+ineligibledemo <- left_join(ineligible, demographics, by = "GEOID10") # This comes out empty
 
