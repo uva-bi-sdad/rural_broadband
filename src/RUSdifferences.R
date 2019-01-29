@@ -1,3 +1,4 @@
+# devtools::install_github('rstudio/gt')
 library(sf)
 library(sp)
 library(rgdal)
@@ -5,6 +6,7 @@ library(tigris)
 library(tidycensus)
 library(dplyr)
 library(naniar)
+library(gt)
 
 options(tigris_use_cache = TRUE)
 census_api_key("548d39e0315b591a0e9f5a8d9d6c1f22ea8fafe0") # Teja's key
@@ -84,15 +86,24 @@ plot(st_geometry(stateVA))
 plot(st_geometry(ineligible), add = TRUE, col = "blue")
 
 # Invert to get eligible
+# A couple of places are getting lost here (see map). Must be something about the type of geometry or st_difference. Figure out! There is clearly
+# something I don't get about geometry operations.
 eligible <- st_difference(stateVA, st_union(ineligible))
 
 plot(st_geometry(stateVA))
 plot(st_geometry(eligible), add = TRUE, col = "blue")
-
+plot(st_geometry(ineligible), add = TRUE, col = "red")
 
 #
 # Check ----------------------------------------------------------------------------------------------------------------------------
 #
+
+# stateVA: 1907 rows
+# ineligible (urban+over20k): 1448 + 55 = 1503 rows
+# eligible (stateVA-ineligible): 953 rows -- this does not match (1907-1503=404), see note about inverting to get eligible above, BUT it looks right on a map?!
+
+plot(st_geometry(eligible), add = TRUE, col = "black")
+plot(st_geometry(ineligible), add = TRUE, col = "red")
 
 summary(stateVA)
 summary(ineligible) 
@@ -149,9 +160,13 @@ acs_estimates <- acs_est %>% transmute(
 
 summary(acs_estimates)
 
-# Join with areas, with geography
+# Join with areas, with geography: This still looks correct on a map after the join, but how come there are so many more rows? Must mean multiple rows from ACS go with
+# a single row from ineligible/eligible?
 ineligible_acs <- st_join(ineligible, acs_estimates, left = TRUE)
 eligible_acs <- st_join(eligible, acs_estimates, left = TRUE)
+
+plot(st_geometry(ineligible_acs))
+plot(st_geometry(eligible_acs))
 
 # Join with areas, without geography
 # head(ineligible$GEOID)
@@ -188,4 +203,27 @@ gg_miss_var(eligible_acs)
 # Test plot
 plot(eligible_acs["family"])
 plot(ineligible_acs["family"])
+
+
+#
+# Comparison ----------------------------------------------------------------------------------------
+#
+
+
+ineligible_comp <- ineligible_acs %>% st_set_geometry(NULL) %>% 
+  select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign) %>% 
+  summarize_all(c("mean", "sd", "min", "max"), na.rm = TRUE) %>% 
+  round(2) %>%
+  gt()
+
+eligible_comp <- eligible_acs %>% st_set_geometry(NULL) %>% 
+  select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign) %>% 
+  summarize_all(c("mean", "sd", "min", "max"), na.rm = TRUE) %>% 
+  round(2) %>%
+  gt()
+
+
+
+
+
 
