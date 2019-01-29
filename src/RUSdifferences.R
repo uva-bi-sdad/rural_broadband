@@ -1,4 +1,6 @@
 library(sf)
+library(sp)
+library(rgdal)
 library(tigris)
 library(tidycensus)
 library(dplyr)
@@ -69,8 +71,14 @@ over20k <- st_transform(over20k, st_crs(stateVA))
 # Get eligible and ineligible areas --------------------------------------------------------------------------------------------
 #
 
-# Join 2 ineligible into 1
-ineligible <- st_join(urban, over20k)
+# Join 2 ineligible into 1: 
+# ineligible <- st_join(urban, over20k) --> this looks good on a map, but how is it possible I'm getting 1731 rows? (55 + 1448 = 1503). 
+# I don't understand exactly what happens, but this version must be incorrect.
+
+# Join using the "remove and rejoin geometry" workaround since there is no bind_rows for sp or sf objects
+ineligible_join <- bind_rows(data.frame(urban), data.frame(over20k))
+ineligible_join$geometry <- c(urban$geometry, over20k$geometry)
+ineligible <- st_as_sf(ineligible_join)
 
 plot(st_geometry(stateVA))
 plot(st_geometry(ineligible), add = TRUE, col = "blue")
@@ -139,12 +147,11 @@ acs_estimates <- acs_est %>% transmute(
                     family = B09019_003E / B09019_002E,
                     foreign = B05002_013E / B05002_001E)
 
+summary(acs_estimates)
+
 # Join with areas, with geography
 ineligible_acs <- st_join(ineligible, acs_estimates, left = TRUE)
 eligible_acs <- st_join(eligible, acs_estimates, left = TRUE)
-
-gg_miss_var(ineligible_acs)
-gg_miss_var(eligible_acs)
 
 # Join with areas, without geography
 # head(ineligible$GEOID)
@@ -165,4 +172,20 @@ gg_miss_var(eligible_acs)
 # eligible_acs <- eligible %>% left_join(acs_estimates1, by = "GEOID")
 
 
+#
+# Inspect ----------------------------------------------------------------------------------------
+#
+
+# Baseline missingness
+gg_miss_var(acs_estimates)
+gg_miss_var(ineligible)
+gg_miss_var(eligible)
+
+# Join missingness - makes sense
+gg_miss_var(ineligible_acs)
+gg_miss_var(eligible_acs)
+
+# Test plot
+plot(eligible_acs["family"])
+plot(ineligible_acs["family"])
 
