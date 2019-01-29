@@ -29,6 +29,11 @@ library(acs)
 library(viridis)
 library(rgdal)
 
+library(ggfortify)
+library(car)
+library(broom)
+library(stargazer)
+
 options(scipen = 999)
 
 #setwd("~/Desktop/Rural_Broadband/brookingsOLS/")
@@ -330,6 +335,7 @@ summary(lm.out)
 #save.image("brookings_fit.RData")
 
 # ----------------------------------------------------
+# EFFECTS PLOT
 # ----------------------------------------------------
 
 # estimates, standard errors, p-values; compare to Brookings 2017
@@ -361,6 +367,54 @@ fig_b2 <- ggplot(data=lm_dat, aes(x=label, y=value)) +
 png("figB2.png",width=800,height=400)
 fig_b2
 dev.off()
+
+
+# ----------------------------------------------------
+# MODEL DIAGNOSTICS
+# ----------------------------------------------------
+
+autoplot(lm.out)
+# Residuals vs. fitted: A horizontal line with no pattern indicates a linear reationship. --> All-around fail.
+# Normal Q-Q: Residual points following the dashed line indicate normal residual distribution. --> Fail at extremes.
+# Scale-Location: Horizontal line with equal point spread indicates homoskedasticity. --> Definitely heteroskedastic. 
+# Residuals vs leverage: Definitely an influential point. 
+
+# Same as above but more+separate plots:
+plot(lm.out, 1) # This suggests that we cannot assume a linear relationship between the predictors and outcome.
+plot(lm.out, 2) # The normal probability plot of residuals does not follow a straight line at the extremes.
+plot(lm.out, 3) # Residuals are not spread equally along the ranges of predictors. The variance of residual errors is non-constant (heteroskedasticity).
+plot(lm.out, 4) # Influential values,  4/(72219-10-1)=0.00005539552 threshold
+plot(lm.out, 5) # Several data points have high leverage (extreme predictor values) and exceed 2SD.  
+
+# Identify high leverage points
+# A value of hatsq statistic above 2*(10+1)/72219=0.000304629 indicates an observation with high leverage.
+augmodel <- augment(lm.out)
+augmodel %>% top_n(3, wt = .cooksd)
+
+# What happens if we remove the weird outlier? Nothing, not worth it. 
+nomiss[23023, ] # This is the weird outlier on every plot
+
+test <- tract_data5[-23023, ]
+lm.outtest <- lm(subscription_continuous ~ available + rural + hs_or_less + poverty + age_65_older +
+                             hispanic + black + density + family + foreign,
+                           data = test)
+summary(lm.outtest)
+summary(lm.out)
+stargazer(lm.out, lm.outtest, digits = 2, type = "text",  align = TRUE, initial.zero = TRUE, no.space = TRUE, notes.align = "l", star.cutoffs = c(0.05, 0.01, 0.001))
+autoplot(lm.outtest)
+
+# What happens if we get standard errors? Only a tiny tiny change.
+url_robust <- "https://raw.githubusercontent.com/IsidoreBeautrelet/economictheoryblog/master/robust_summary.R"
+eval(parse(text = getURL(url_robust, ssl.verifypeer = FALSE)), envir = .GlobalEnv)
+
+summary(lm.out)
+summary(lm.out, robust = TRUE)
+
+nonrobust_se <- as.vector(summary(lm.out)$coefficients[, "Std. Error"])
+robust_se <- as.vector(summary(lm.out, robust = T)$coefficients[, "Std. Error"])
+stargazer(lm.out, lm.outtest, digits = 2, type = "text",  align = TRUE, initial.zero = TRUE, no.space = TRUE, 
+          notes.align = "l", star.cutoffs = c(0.05, 0.01, 0.001), se = list(nonrobust_se, robust_se))
+
 
 # ----------------------------------------------------
 # DATA ISSUES
