@@ -1,4 +1,3 @@
-# devtools::install_github('rstudio/gt')
 library(sf)
 library(sp)
 library(rgdal)
@@ -6,7 +5,9 @@ library(tigris)
 library(tidycensus)
 library(dplyr)
 library(naniar)
-library(gt)
+library(gt) # devtools::install_github('rstudio/gt')
+library(tidyr)
+library(ggplot2)
 
 options(tigris_use_cache = TRUE)
 census_api_key("548d39e0315b591a0e9f5a8d9d6c1f22ea8fafe0") # Teja's key
@@ -206,7 +207,7 @@ plot(ineligible_acs["family"])
 
 
 #
-# Comparison ----------------------------------------------------------------------------------------
+# Comparison w/amateur plots ----------------------------------------------------------------------------------------
 #
 
 
@@ -214,16 +215,62 @@ ineligible_comp <- ineligible_acs %>% st_set_geometry(NULL) %>%
   select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign) %>% 
   summarize_all(c("mean", "sd", "min", "max"), na.rm = TRUE) %>% 
   round(2) %>%
-  gt()
+  gather("variable", "value_inel") %>%
+  gt() 
 
 eligible_comp <- eligible_acs %>% st_set_geometry(NULL) %>% 
   select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign) %>% 
   summarize_all(c("mean", "sd", "min", "max"), na.rm = TRUE) %>% 
   round(2) %>%
+  gather("variable", "value_el") %>%
   gt()
 
+comparison <- merge(ineligible_comp, eligible_comp, by = "variable", sort = FALSE)
 
+# Population
+ggplot(comparison, aes(type, population_mean)) + 
+    geom_col() + 
+    geom_errorbar(aes(ymin = population_mean-population_sd, ymax = population_mean+population_sd), 
+                  width=.2, position=position_dodge(.9))
 
+# HS or less
+ggplot(comparison, aes(type, hs_or_less_mean)) + 
+  geom_col() + 
+  geom_errorbar(aes(ymin = hs_or_less_mean-hs_or_less_sd, ymax = hs_or_less_mean+hs_or_less_sd), 
+                width=.2, position=position_dodge(.9))
 
+# Poverty 
+ggplot(comparison, aes(type, poverty_mean)) + 
+  geom_col() + 
+  geom_errorbar(aes(ymin = poverty_mean-poverty_sd, ymax = poverty_mean+poverty_sd), 
+                width=.2, position=position_dodge(.9))
 
+# 65+
+ggplot(comparison, aes(type, age_65_older_mean)) + 
+  geom_col() + 
+  geom_errorbar(aes(ymin = age_65_older_mean-age_65_older_sd, ymax = age_65_older_mean+age_65_older_sd), 
+                width=.2, position=position_dodge(.9))
 
+# Hispanic
+ggplot(comparison, aes(type, hispanic_mean)) + 
+  geom_col() + 
+  geom_errorbar(aes(ymin = hispanic_mean-hispanic_sd, ymax = hispanic_mean+hispanic_sd), 
+                width=.2, position=position_dodge(.9))
+
+# Black
+ggplot(comparison, aes(type, black_mean)) + 
+  geom_col() + 
+  geom_errorbar(aes(ymin = black_mean-black_sd, ymax = black_mean+black_sd), 
+                width=.2, position=position_dodge(.9))
+
+# Family
+ggplot(comparison, aes(type, family_mean)) + 
+  geom_col() + 
+  geom_errorbar(aes(ymin = family_mean-family_sd, ymax = family_mean+family_sd), 
+                width=.2, position=position_dodge(.9))
+
+# Foreign
+ggplot(comparison, aes(type, foreign_mean)) + 
+  geom_col() + 
+  geom_errorbar(aes(ymin = foreign_mean-foreign_sd, ymax = foreign_mean+foreign_sd), 
+                width=.2, position=position_dodge(.9))
