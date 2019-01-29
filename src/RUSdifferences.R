@@ -103,8 +103,8 @@ plot(st_geometry(ineligible), add = TRUE, col = "red")
 # ineligible (urban+over20k): 1448 + 55 = 1503 rows
 # eligible (stateVA-ineligible): 953 rows -- this does not match (1907-1503=404), see note about inverting to get eligible above, BUT it looks right on a map?!
 
-plot(st_geometry(eligible), add = TRUE, col = "black")
-plot(st_geometry(ineligible), add = TRUE, col = "red")
+plot(st_geometry(eligible), col = "blue")
+plot(st_geometry(ineligible), col = "red")
 
 summary(stateVA)
 summary(ineligible) 

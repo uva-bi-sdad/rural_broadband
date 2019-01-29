@@ -13,6 +13,7 @@ library(ggfortify)
 library(RCurl)
 library(car)
 library(purrr)
+library(jtools)
 
 options(scipen = 999)
 census_api_key("548d39e0315b591a0e9f5a8d9d6c1f22ea8fafe0") # Teja's key
@@ -291,9 +292,21 @@ hist(nomiss$rate_owned)
 
 # Yes, but can't do Box-Tidwell/log/... because of 0 values on all variables.
 
+abline(lm(log_medianval ~ available + subscription_continuous + 
+            hs_or_less + age_65_older + hispanic + black + foreign + rural + poverty + density + family +
+            rate_occupied + rate_owned + rate_single + median_yrbuilt,
+          data = nomiss))
+
 
 #
-# Predict rent instead -------------------------------------------------------------------------------------
+# Result plots -------------------------------------------------------------------------------------
+#
+
+plot_summs(reg_median3, scale = TRUE) + labs(title = "Coefficients from OLS model predicting logged median property values")
+
+
+#
+# Predict rent  -------------------------------------------------------------------------------------
 #
 
 nomiss$log_rentgrossmed <- log(nomiss$rent_mediangross)
