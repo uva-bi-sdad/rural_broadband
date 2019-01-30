@@ -43,6 +43,15 @@ st_crs(urbanized_areas)
 urban <- st_intersection(stateVA, urbanized_areas)
 plot(st_geometry(urban))
 
+# Extract only polygons
+#test1 <- st_collection_extract(urban, type = "POLYGON")
+#plot(st_geometry(test1))
+#test2 <- st_collection_extract(urban, type = "POINT")
+#plot(st_geometry(test2))
+#plot(st_geometry(test1), col = "blue")
+#plot(st_geometry(test2), add = TRUE, col = "red")
+
+urban <- st_collection_extract(urban, type = "POLYGON")
 
 #
 # Get places over 2K (ineligible), adapted from Josh ----------------------------------------------------------------------------
@@ -74,14 +83,14 @@ over20k <- st_transform(over20k, st_crs(stateVA))
 # Get eligible and ineligible areas --------------------------------------------------------------------------------------------
 #
 
-# Join 2 ineligible into 1: 
-# ineligible <- st_join(urban, over20k) --> this looks good on a map, but how is it possible I'm getting 1731 rows? (55 + 1448 = 1503). 
-# I don't understand exactly what happens, but this version must be incorrect.
-
 # Join using the "remove and rejoin geometry" workaround since there is no bind_rows for sp or sf objects
 ineligible_join <- bind_rows(data.frame(urban), data.frame(over20k))
 ineligible_join$geometry <- c(urban$geometry, over20k$geometry)
 ineligible <- st_as_sf(ineligible_join)
+
+plot(st_geometry(stateVA))
+plot(st_geometry(over20k), add = TRUE, col = "blue")
+plot(st_geometry(urban), add = TRUE, col = "red")
 
 plot(st_geometry(stateVA))
 plot(st_geometry(ineligible), add = TRUE, col = "blue")
@@ -93,15 +102,12 @@ eligible <- st_difference(stateVA, st_union(ineligible))
 
 plot(st_geometry(stateVA))
 plot(st_geometry(eligible), add = TRUE, col = "blue")
-plot(st_geometry(ineligible), add = TRUE, col = "red")
+plot(st_geometry(ineligible), add = TRUE, col = "red", border = "red")
+
 
 #
 # Check ----------------------------------------------------------------------------------------------------------------------------
 #
-
-# stateVA: 1907 rows
-# ineligible (urban+over20k): 1448 + 55 = 1503 rows
-# eligible (stateVA-ineligible): 953 rows -- this does not match (1907-1503=404), see note about inverting to get eligible above, BUT it looks right on a map?!
 
 plot(st_geometry(eligible), col = "blue")
 plot(st_geometry(ineligible), col = "red")
@@ -167,7 +173,10 @@ ineligible_acs <- st_join(ineligible, acs_estimates, left = TRUE)
 eligible_acs <- st_join(eligible, acs_estimates, left = TRUE)
 
 plot(st_geometry(ineligible_acs))
+plot(st_geometry(ineligible), add = TRUE, col = "red", border = "red")
+
 plot(st_geometry(eligible_acs))
+plot(st_geometry(eligible), add = TRUE, col = "red", border = "red")
 
 # Join with areas, without geography
 # head(ineligible$GEOID)
@@ -204,6 +213,18 @@ gg_miss_var(eligible_acs)
 # Test plot
 plot(eligible_acs["family"])
 plot(ineligible_acs["family"])
+
+
+#
+# Pretty map ----------------------------------------------------------------------------------------
+#
+
+ggplot() +
+  geom_sf(data = eligible, aes(color = "Eligible")) +
+  geom_sf(data = ineligible, aes(color = "Ineligible")) +
+  labs(title = "Virginia tracts by RUS grant eligibility", color = "Status", 
+       caption = "Note: Ineligible areas defined as areas with over 20,000 inhabitants and 2010 Census urbanized areas.") +
+  theme_bw()
 
 
 #
