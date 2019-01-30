@@ -12,7 +12,6 @@ library(broom)
 library(ggfortify)
 library(RCurl)
 library(car)
-library(purrr)
 library(jtools)
 
 options(scipen = 999)
@@ -275,7 +274,7 @@ myfunction <- function(x){
 }
 
 stargazer(reg_median1, reg_median2, reg_median3, digits = 2, no.space = TRUE, type = "text", se = list(robust_se1, robust_se2, robust_se3),
-          apply.coef = myfunction)
+          apply.coef = myfunction, apply.se = myfunction)
 
 # Diagnostics look better
 autoplot(reg_median3)
@@ -291,18 +290,44 @@ hist(nomiss$hs_or_less)
 hist(nomiss$rate_owned)
 
 # Yes, but can't do Box-Tidwell/log/... because of 0 values on all variables.
-
-abline(lm(log_medianval ~ available + subscription_continuous + 
-            hs_or_less + age_65_older + hispanic + black + foreign + rural + poverty + density + family +
-            rate_occupied + rate_owned + rate_single + median_yrbuilt,
-          data = nomiss))
+# Found one paper that suggest logit transformations for rates (http://fmwww.bc.edu/repec/bocode/t/transint.html), logit p = log (p / (1 - p))
+# Tried this and diagnostics are not better.
 
 
 #
 # Result plots -------------------------------------------------------------------------------------
 #
 
-plot_summs(reg_median3, scale = TRUE) + labs(title = "Coefficients from OLS model predicting logged median property values")
+# Version 1
+plot_summs(reg_median3, scale = TRUE) + labs(title = "Coefficients and 95%CI from OLS model \n predicting logged median property values")
+
+# Version 2
+effect_transf <- c(-9.93, 36.31, -87.66, 68.72, -17.23, -31.11, 356.91, -9.34, -61.90, 0.001, 197.91, -1.52, -33.34, 0.87, -0.19)
+effect_semin <- c(-9.94, 36.29, -87.68, 68.67, -17.25, -31.12, 356.88, -9.35, -61.94, 0.001, 197.87, -1.56, -33.38, 0.84, -0.19)
+effect_seplus <- c(-9.91, 36.33, -87.63, 68.77, -17.21, -31.09, 356.95, -9.33, -61.86, 0.001, 197.95, -1.49, -33.31, 0.89, -0.19)
+label <- c("Broadband availability at 25 mbps", "Subscription rate", "Share of population age 25+ with\n high school diploma or less",
+           "Share of population aged 65+", "Hispanic share of population", "Black hare of population", "Foreign born share of population",
+           "Rural neighborhood", "Poverty rate", "Population density per sq. mile", "Families share of population", "Occupied share of properties", 
+           "Owned share of properties", "Single share of properties", "Property median year built")
+
+library(reshape2)
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+lm_dat <- melt(data.frame(label, effect_transf))
+lm_dat$label <- ordered(lm_dat$label, levels = rev(label))
+
+fig <- ggplot(data = lm_dat, aes(x = reorder(label, value), y = value)) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.7, aes(fill = variable)) +
+  geom_errorbar(aes(ymin = effect_semin, ymax = effect_seplus),
+                size = .3,    
+                width = .2,
+                position = position_dodge(.9)) +
+  coord_flip() +
+  theme(legend.position = "none") +
+  scale_fill_manual("Effect Size", values = cbPalette[2:3]) +
+  labs(x = "", y = "", title = "Estimated % change in median property value per unit increase in independent variable", 
+       caption = "Source: ACS, 2015. All variables except occupied and single rate significant at p<0.001. 95% CI shown.") +
+  scale_y_continuous(breaks = seq(from = -100, to = 400, by = 30))
+fig
 
 
 #
