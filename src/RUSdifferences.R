@@ -80,6 +80,21 @@ over20k <- st_transform(over20k, st_crs(stateVA))
 
 
 #
+# Get places with at least 10 Mbps downstream/1 Mbps upstream ---------------------------------------
+#
+
+fcc_subscription <- read.csv("data/fcc_subscription/tract_map_dec_2015.csv")
+colnames(fcc_subscription)[colnames(fcc_subscription) == "tractcode"] <- "GEOID"
+
+test <- fcc_subscription$GEOID %in% eligible$GEOID
+fcc_subscription$test <- fcc_subscription$GEOID %in% eligible$GEOID
+fcc_subscription <- fcc_subscription %>% filter(test == TRUE)
+  
+test <- eligible %>% filter(GEOID %in% fcc_subscription$GEOID)  
+# I think everyone has at least 10mbps/1...
+
+
+#
 # Get eligible and ineligible areas --------------------------------------------------------------------------------------------
 #
 
@@ -145,7 +160,7 @@ acs_vars <- c("B15003_001","B15003_002","B15003_003","B15003_004","B15003_005","
               "B05002_001","B05002_013")
 
 acs_est <- get_acs(geography = "tract", state = "Virginia", variables = acs_vars, year = 2015, cache_table = TRUE,
-                    geometry = TRUE, keep_geo_vars = TRUE, output = "wide")
+                   geometry = TRUE, keep_geo_vars = TRUE, output = "wide")
 
 # Compute rates
 acs_estimates <- acs_est %>% transmute(
@@ -177,6 +192,7 @@ plot(st_geometry(ineligible), add = TRUE, col = "red", border = "red")
 
 plot(st_geometry(eligible_acs))
 plot(st_geometry(eligible), add = TRUE, col = "red", border = "red")
+
 
 # Join with areas, without geography
 # head(ineligible$GEOID)
@@ -231,20 +247,17 @@ ggplot() +
 # Comparison w/amateur plots ----------------------------------------------------------------------------------------
 #
 
-
-ineligible_comp <- ineligible_acs %>% st_set_geometry(NULL) %>% 
+ineligible_comp  <- ineligible_acs %>% st_set_geometry(NULL) %>% 
   select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign) %>% 
   summarize_all(c("mean", "sd", "min", "max"), na.rm = TRUE) %>% 
   round(2) %>%
-  gather("variable", "value_inel") %>%
-  gt() 
+  gather("variable", "value_inel")
 
 eligible_comp <- eligible_acs %>% st_set_geometry(NULL) %>% 
   select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign) %>% 
   summarize_all(c("mean", "sd", "min", "max"), na.rm = TRUE) %>% 
   round(2) %>%
-  gather("variable", "value_el") %>%
-  gt()
+  gather("variable", "value_el")
 
 comparison <- merge(ineligible_comp, eligible_comp, by = "variable", sort = FALSE)
 
