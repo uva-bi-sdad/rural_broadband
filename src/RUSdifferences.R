@@ -223,7 +223,7 @@ ggplot() +
   geom_sf(data = eligible, aes(color = "Eligible")) +
   geom_sf(data = ineligible, aes(color = "Ineligible")) +
   labs(title = "Virginia tracts by RUS grant eligibility", color = "Status", 
-       caption = "Note: Ineligible areas defined as areas with over 20,000 inhabitants and 2010 Census urbanized areas.") +
+       caption = "Note: Ineligible areas defined as rural areas (over 20,000 inhabitants or 2010 Census urbanized areas.") +
   theme_bw()
 
 
