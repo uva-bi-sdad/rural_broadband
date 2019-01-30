@@ -13,6 +13,7 @@ library(ggfortify)
 library(RCurl)
 library(car)
 library(jtools)
+library(reshape2)
 
 options(scipen = 999)
 census_api_key("548d39e0315b591a0e9f5a8d9d6c1f22ea8fafe0") # Teja's key
@@ -193,9 +194,9 @@ nomiss <- tract_data5 %>% select(GEOID, STATEFP, COUNTYFP, NAME, name2, availabl
 
 
 #
-# OLS -------------------------------------------------------------------------------------
+# Property value: Predict median property value -------------------------------------------------------------------------------------
 #
-  
+
 reg_median1 <- lm(median_val ~ available + subscription_continuous,
                   data = nomiss)
 reg_median2 <- lm(median_val ~ available + subscription_continuous + 
@@ -209,7 +210,7 @@ stargazer(reg_median1, reg_median2, reg_median3, no.space = TRUE, digits = 2, ty
 
 
 #
-# OLS diagnostics -------------------------------------------------------------------------------------
+# Property value: Diagnostics -------------------------------------------------------------------------------------
 #
 
 autoplot(reg_median3)
@@ -240,9 +241,8 @@ eval(parse(text = getURL(url_robust, ssl.verifypeer = FALSE)), envir = .GlobalEn
 summary(reg_median3)
 summary(reg_median3, robust = TRUE)
 
-
 #
-# OLS with depvar log transform  -------------------------------------------------------------------------------------
+# Property value: Predict logged median property value -------------------------------------------------------------------------------------
 #
 
 # Run Box-Cox to figure out the best outcome transformation
@@ -265,7 +265,7 @@ reg_median3 <- lm(log_medianval ~ available + subscription_continuous +
 robust_se1 <- as.vector(summary(reg_median1, robust = T)$coefficients[, "Std. Error"])
 robust_se2 <- as.vector(summary(reg_median2, robust = T)$coefficients[, "Std. Error"])
 robust_se3 <- as.vector(summary(reg_median3, robust = T)$coefficients[, "Std. Error"])
-stargazer(reg_median1, reg_median2, reg_median3, digits = 2, no.space = TRUE, type = "text", se = list(robust_se1, robust_se2, robust_se3))
+stargazer(reg_median1, reg_median2, reg_median3, digits = 2, no.space = TRUE, type = "text", se = list(robust_se1, robust_se2, robust_se3), star.cutoffs = c(0.05, 0.01, 0.001))
 
 # Exponentiate the coefficient, subtract one from this number, and multiply by 100. 
 # This gives the percent increase (or decrease) in the response for every one-unit increase in the independent variable. 
@@ -274,7 +274,7 @@ myfunction <- function(x){
 }
 
 stargazer(reg_median1, reg_median2, reg_median3, digits = 2, no.space = TRUE, type = "text", se = list(robust_se1, robust_se2, robust_se3),
-          apply.coef = myfunction, apply.se = myfunction)
+          apply.coef = myfunction)
 
 # Diagnostics look better
 autoplot(reg_median3)
@@ -295,7 +295,7 @@ hist(nomiss$rate_owned)
 
 
 #
-# Result plots -------------------------------------------------------------------------------------
+# Property value: Result plots -------------------------------------------------------------------------------------
 #
 
 # Version 1
@@ -306,14 +306,15 @@ effect_transf <- c(-9.93, 36.31, -87.66, 68.72, -17.23, -31.11, 356.91, -9.34, -
 effect_semin <- c(-9.94, 36.29, -87.68, 68.67, -17.25, -31.12, 356.88, -9.35, -61.94, 0.001, 197.87, -1.56, -33.38, 0.84, -0.19)
 effect_seplus <- c(-9.91, 36.33, -87.63, 68.77, -17.21, -31.09, 356.95, -9.33, -61.86, 0.001, 197.95, -1.49, -33.31, 0.89, -0.19)
 label <- c("Broadband availability at 25 mbps", "Subscription rate", "Share of population age 25+ with\n high school diploma or less",
-           "Share of population aged 65+", "Hispanic share of population", "Black hare of population", "Foreign born share of population",
+           "Share of population aged 65+", "Hispanic share of population", "Black share of population", "Foreign born share of population",
            "Rural neighborhood", "Poverty rate", "Population density per sq. mile", "Families share of population", "Occupied share of properties", 
            "Owned share of properties", "Single share of properties", "Property median year built")
 
-library(reshape2)
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 lm_dat <- melt(data.frame(label, effect_transf))
 lm_dat$label <- ordered(lm_dat$label, levels = rev(label))
+lm_dat$effect_semin <- effect_semin
+lm_dat$effect_seplus <- effect_seplus
 
 fig <- ggplot(data = lm_dat, aes(x = reorder(label, value), y = value)) +
   geom_bar(stat = "identity", position = "dodge", width = 0.7, aes(fill = variable)) +
@@ -323,19 +324,43 @@ fig <- ggplot(data = lm_dat, aes(x = reorder(label, value), y = value)) +
                 position = position_dodge(.9)) +
   coord_flip() +
   theme(legend.position = "none") +
-  scale_fill_manual("Effect Size", values = cbPalette[2:3]) +
-  labs(x = "", y = "", title = "Estimated % change in median property value per unit increase in independent variable", 
+  scale_fill_manual(values = cbPalette[2]) +
+  labs(x = "", y = "% change", title = "Estimated % change in median property value per unit increase in independent variable", 
        caption = "Source: ACS, 2015. All variables except occupied and single rate significant at p<0.001. 95% CI shown.") +
   scale_y_continuous(breaks = seq(from = -100, to = 400, by = 30))
 fig
 
 
 #
-# Predict rent  -------------------------------------------------------------------------------------
+# Rent: Predict median rent  -------------------------------------------------------------------------------------
 #
 
+reg_median1 <- lm(rent_mediangross ~ available + subscription_continuous,
+                  data = nomiss)
+reg_median2 <- lm(rent_mediangross ~ available + subscription_continuous + 
+                    hs_or_less + age_65_older + hispanic + black + foreign + rural + poverty + density + family,
+                  data = nomiss)
+reg_median3 <- lm(rent_mediangross ~ available + subscription_continuous + 
+                    hs_or_less + age_65_older + hispanic + black + foreign + rural + poverty + density + family +
+                    rate_occupied + rate_owned + rate_single + median_yrbuilt,
+                  data = nomiss)
+stargazer(reg_median1, reg_median2, reg_median3, no.space = TRUE, digits = 2, type = "text")
+
+# Quick diagnostics: pretty awful!
+autoplot(reg_median3)
+
+
+#
+# Rent: Predict logged median rent  -------------------------------------------------------------------------------------
+#
+
+# Run Box-Cox to figure out the best outcome transformation
+bc <- MASS::boxcox(reg_median3, lambda = seq(-3, 3))
+lambda <- bc$x[which.max(bc$y)]
+# Lambda is close to 0 (-0.272727...) --> log transform.
+
+# OLS with depvar log transformed
 nomiss$log_rentgrossmed <- log(nomiss$rent_mediangross)
-nomiss$log_rentaggmed <- log(nomiss$rent_aggreggross)
 
 reg_median1 <- lm(log_rentgrossmed ~ available + subscription_continuous,
                   data = nomiss)
@@ -347,3 +372,92 @@ reg_median3 <- lm(log_rentgrossmed ~ available + subscription_continuous +
                     rate_occupied + rate_owned + rate_single + median_yrbuilt,
                   data = nomiss)
 stargazer(reg_median1, reg_median2, reg_median3, no.space = TRUE, digits = 2, type = "text")
+
+robust_se1 <- as.vector(summary(reg_median1, robust = T)$coefficients[, "Std. Error"])
+robust_se2 <- as.vector(summary(reg_median2, robust = T)$coefficients[, "Std. Error"])
+robust_se3 <- as.vector(summary(reg_median3, robust = T)$coefficients[, "Std. Error"])
+stargazer(reg_median1, reg_median2, reg_median3, digits = 2, no.space = TRUE, type = "text", se = list(robust_se1, robust_se2, robust_se3), star.cutoffs = c(0.05, 0.01, 0.001))
+
+# Quick diagnostics: a bit better.
+autoplot(reg_median3)
+
+# Exponentiate the coefficient, subtract one from this number, and multiply by 100. 
+# This gives the percent increase (or decrease) in the response for every one-unit increase in the independent variable. 
+myfunction <- function(x){
+  (exp(x)-1)*100
+}
+
+stargazer(reg_median1, reg_median2, reg_median3, digits = 2, no.space = TRUE, type = "text", se = list(robust_se1, robust_se2, robust_se3),
+          apply.coef = myfunction)
+
+
+#
+# Rent: Result plots -------------------------------------------------------------------------------------
+#
+
+# Version 1
+plot_summs(reg_median3, scale = TRUE) + labs(title = "Coefficients and 95%CI from OLS model \n predicting logged median gross rent")
+
+# Version 2
+effect_transf <- c(-1.37, 48.18, -54.79, -17.17, 11.75, 15.76, 152.29, -11.53, -39.22, 0.0004, 15.54, -9.60, 7.31, 26.23, 0.10)
+effect_semin <- c(-1.37, 48.17, -54.81, -17.20, 11.73, 15.75, 152.27, -11.52, -39.24, 0.0004, 15.52, -9.62, 7.29, 26.22, 0.10)
+effect_seplus <- c(-1.36, 48.19, -54.78, -17.14, 11.76, 15.77, 152.32, -11.52, -39.19, 0.0004, 15.56, -9.58, 7.32, 26.25, 0.10)
+label <- c("Broadband availability at 25 mbps", "Subscription rate", "Share of population age 25+ with\n high school diploma or less",
+           "Share of population aged 65+", "Hispanic share of population", "Black share of population", "Foreign born share of population",
+           "Rural neighborhood", "Poverty rate", "Population density per sq. mile", "Families share of population", "Occupied share of properties", 
+           "Owned share of properties", "Single share of properties", "Property median year built")
+
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+lm_dat <- melt(data.frame(label, effect_transf))
+lm_dat$label <- ordered(lm_dat$label, levels = rev(label))
+lm_dat$effect_semin <- effect_semin
+lm_dat$effect_seplus <- effect_seplus
+
+fig <- ggplot(data = lm_dat, aes(x = reorder(label, value), y = value)) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.7, aes(fill = variable)) +
+  geom_errorbar(aes(ymin = effect_semin, ymax = effect_seplus),
+                size = .3,    
+                width = .2,
+                position = position_dodge(.9)) +
+  coord_flip() +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = cbPalette[2]) +
+  labs(x = "", y = "% change", title = "Estimated % change in median gross rent per unit increase in independent variable", 
+       caption = "Source: ACS, 2015. All variables significant at p<0.001. 95% CI shown.") +
+  scale_y_continuous(breaks = seq(from = -60, to = 200, by = 20))
+fig
+
+
+#
+# Rent and median value on the same plot -------------------------------------------------------------------------------------
+#
+
+effect_value <- c(-9.93, 36.31, -87.66, 68.72, -17.23, -31.11, 356.91, -9.34, -61.90, 0.001, 197.91, -1.52, -33.34, 0.87, -0.19)
+effect_value_semin <- c(-9.94, 36.29, -87.68, 68.67, -17.25, -31.12, 356.88, -9.35, -61.94, 0.001, 197.87, -1.56, -33.38, 0.84, -0.19)
+effect_value_seplus <- c(-9.91, 36.33, -87.63, 68.77, -17.21, -31.09, 356.95, -9.33, -61.86, 0.001, 197.95, -1.49, -33.31, 0.89, -0.19)
+
+effect_rent <- c(-1.37, 48.18, -54.79, -17.17, 11.75, 15.76, 152.29, -11.53, -39.22, 0.0004, 15.54, -9.60, 7.31, 26.23, 0.10)
+effect_rent_semin <- c(-1.37, 48.17, -54.81, -17.20, 11.73, 15.75, 152.27, -11.52, -39.24, 0.0004, 15.52, -9.62, 7.29, 26.22, 0.10)
+effect_rent_seplus <- c(-1.36, 48.19, -54.78, -17.14, 11.76, 15.77, 152.32, -11.52, -39.19, 0.0004, 15.56, -9.58, 7.32, 26.25, 0.10)
+
+label <- c("Broadband availability at 25 mbps", "Subscription rate", "Share of population age 25+ with\n high school diploma or less",
+           "Share of population aged 65+", "Hispanic share of population", "Black share of population", "Foreign born share of population",
+           "Rural neighborhood", "Poverty rate", "Population density per sq. mile", "Families share of population", "Occupied share of properties", 
+           "Owned share of properties", "Single share of properties", "Property median year built")
+
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+lm_dat <- melt(data.frame(label, effect_value, effect_rent))
+lm_dat$label <- ordered(lm_dat$label, levels = rev(label))
+lm_dat$effect_semin <- c(effect_value_semin, effect_rent_semin)
+lm_dat$effect_seplus <- c(effect_value_seplus, effect_rent_seplus)
+
+fig <- ggplot(data = lm_dat, aes(x = reorder(label, value), y = value)) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.7, aes(fill = variable)) +
+  coord_flip() +
+  scale_fill_manual("Effect size", values = cbPalette[2:3], labels = c("Property value", "Gross rent")) +
+  labs(x = "", y = "% change", title = "Estimated % change in median property value and median rent per unit increase \nin independent variable", 
+       caption = "Source: ACS, 2015. All variables significant at p<0.001, except occupied and single rate for property value predictions.") +
+  scale_y_continuous(breaks = seq(from = -100, to = 400, by = 30))
+fig
+
