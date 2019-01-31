@@ -194,19 +194,19 @@ plot(st_geometry(ineligible), add = TRUE, col = "red", border = "red")
 plot(st_geometry(eligible), col = "blue")
 plot(st_geometry(ineligible), col = "red")
 
-summary(stateVA)
+summary(stateVAacs)
 summary(ineligible) 
 summary(eligible) 
 
-str(stateVA)
+str(stateVAacs)
 str(ineligible)
 str(eligible)
 
-names(stateVA) # AFFGEOID, GEOID
+names(stateVAacs) # AFFGEOID, GEOID
 names(ineligible) # AFFGEOID, GEOID, GEOID10, GEO_ID
 names(eligible) # AFFGEOID, GEOID
 
-class(stateVA)
+class(stateVAacs)
 class(ineligible)
 class(eligible)
 
@@ -221,12 +221,22 @@ gg_miss_var(ineligible)
 gg_miss_var(eligible)
 
 # Join missingness - makes sense
-gg_miss_var(ineligible_acs)
-gg_miss_var(eligible_acs)
+gg_miss_var(ineligible)
+gg_miss_var(eligible)
+
+# Attributes/relation of data to geometry
+# relation_to_geometry notes how attributes relate to the geometry: 
+# constant (field), aggregated over the geometry (lattice), identify individual entities (buildings, parcels etc.)?
+attributes(stateVAacs)
+attributes(eligible)
+attributes(ineligible)
 
 # Test plot
-plot(eligible_acs["family"])
-plot(ineligible_acs["family"])
+plot(eligible["family"])
+plot(ineligible["family"])
+
+plot(eligible["population"])
+plot(ineligible["population"])
 
 
 #
@@ -242,67 +252,38 @@ ggplot() +
 
 
 #
-# Comparison w/amateur plots ----------------------------------------------------------------------------------------
+# Comparison ----------------------------------------------------------------------------------------
 #
 
-ineligible_comp  <- ineligible %>% st_set_geometry(NULL) %>% 
+# Tables
+inel <- ineligible %>% st_set_geometry(NULL) %>% 
   select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign) %>% 
   summarize_all(c("mean", "sd", "min", "max"), na.rm = TRUE) %>% 
   round(2) %>%
   gather("variable", "value_inel")
 
-eligible_comp <- eligible %>% st_set_geometry(NULL) %>% 
+el <- eligible %>% st_set_geometry(NULL) %>% 
   select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign) %>% 
   summarize_all(c("mean", "sd", "min", "max"), na.rm = TRUE) %>% 
   round(2) %>%
   gather("variable", "value_el")
 
-comparison <- merge(ineligible_comp, eligible_comp, by = "variable", sort = FALSE)
+comparison <- merge(inel, el, by = "variable", sort = FALSE)
 
-# Population
-ggplot(comparison, aes(type, population_mean)) + 
-    geom_col() + 
-    geom_errorbar(aes(ymin = population_mean-population_sd, ymax = population_mean+population_sd), 
-                  width=.2, position=position_dodge(.9))
+# Tables when population != 0
+inel_nozero <- ineligible %>% st_set_geometry(NULL) %>% 
+  filter(population != 0) %>%
+  select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign) %>% 
+  summarize_all(c("mean", "sd", "min", "max"), na.rm = TRUE) %>% 
+  round(2) %>%
+  gather("variable", "value_inel")
 
-# HS or less
-ggplot(comparison, aes(type, hs_or_less_mean)) + 
-  geom_col() + 
-  geom_errorbar(aes(ymin = hs_or_less_mean-hs_or_less_sd, ymax = hs_or_less_mean+hs_or_less_sd), 
-                width=.2, position=position_dodge(.9))
+el_nozero <- eligible %>% st_set_geometry(NULL) %>% 
+  filter(population != 0) %>%
+  select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign) %>% 
+  summarize_all(c("mean", "sd", "min", "max"), na.rm = TRUE) %>% 
+  round(2) %>%
+  gather("variable", "value_el")
 
-# Poverty 
-ggplot(comparison, aes(type, poverty_mean)) + 
-  geom_col() + 
-  geom_errorbar(aes(ymin = poverty_mean-poverty_sd, ymax = poverty_mean+poverty_sd), 
-                width=.2, position=position_dodge(.9))
+comparison <- merge(inel_nozero, el_nozero, by = "variable", sort = FALSE)
 
-# 65+
-ggplot(comparison, aes(type, age_65_older_mean)) + 
-  geom_col() + 
-  geom_errorbar(aes(ymin = age_65_older_mean-age_65_older_sd, ymax = age_65_older_mean+age_65_older_sd), 
-                width=.2, position=position_dodge(.9))
-
-# Hispanic
-ggplot(comparison, aes(type, hispanic_mean)) + 
-  geom_col() + 
-  geom_errorbar(aes(ymin = hispanic_mean-hispanic_sd, ymax = hispanic_mean+hispanic_sd), 
-                width=.2, position=position_dodge(.9))
-
-# Black
-ggplot(comparison, aes(type, black_mean)) + 
-  geom_col() + 
-  geom_errorbar(aes(ymin = black_mean-black_sd, ymax = black_mean+black_sd), 
-                width=.2, position=position_dodge(.9))
-
-# Family
-ggplot(comparison, aes(type, family_mean)) + 
-  geom_col() + 
-  geom_errorbar(aes(ymin = family_mean-family_sd, ymax = family_mean+family_sd), 
-                width=.2, position=position_dodge(.9))
-
-# Foreign
-ggplot(comparison, aes(type, foreign_mean)) + 
-  geom_col() + 
-  geom_errorbar(aes(ymin = foreign_mean-foreign_sd, ymax = foreign_mean+foreign_sd), 
-                width=.2, position=position_dodge(.9))
