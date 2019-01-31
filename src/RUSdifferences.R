@@ -258,13 +258,13 @@ ggplot() +
 # Tables
 inel <- ineligible %>% st_set_geometry(NULL) %>% 
   select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign) %>% 
-  summarize_all(c("mean", "sd", "min", "max"), na.rm = TRUE) %>% 
+  summarize_all(c("mean", "median", "sd", "min", "max"), na.rm = TRUE) %>% 
   round(2) %>%
   gather("variable", "value_inel")
 
 el <- eligible %>% st_set_geometry(NULL) %>% 
   select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign) %>% 
-  summarize_all(c("mean", "sd", "min", "max"), na.rm = TRUE) %>% 
+  summarize_all(c("mean", "median", "sd", "min", "max"), na.rm = TRUE) %>% 
   round(2) %>%
   gather("variable", "value_el")
 
@@ -274,14 +274,14 @@ comparison <- merge(inel, el, by = "variable", sort = FALSE)
 inel_nozero <- ineligible %>% st_set_geometry(NULL) %>% 
   filter(population != 0) %>%
   select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign) %>% 
-  summarize_all(c("mean", "sd", "min", "max"), na.rm = TRUE) %>% 
+  summarize_all(c("mean", "median", "sd", "min", "max"), na.rm = TRUE) %>% 
   round(2) %>%
   gather("variable", "value_inel")
 
 el_nozero <- eligible %>% st_set_geometry(NULL) %>% 
   filter(population != 0) %>%
   select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign) %>% 
-  summarize_all(c("mean", "sd", "min", "max"), na.rm = TRUE) %>% 
+  summarize_all(c("mean", "median", "sd", "min", "max"), na.rm = TRUE) %>% 
   round(2) %>%
   gather("variable", "value_el")
 
