@@ -440,10 +440,10 @@ effect_rent <- c(-1.37, 48.18, -54.79, -17.17, 11.75, 15.76, 152.29, -11.53, -39
 effect_rent_semin <- c(-1.37, 48.17, -54.81, -17.20, 11.73, 15.75, 152.27, -11.52, -39.24, 0.0004, 15.52, -9.62, 7.29, 26.22, 0.10)
 effect_rent_seplus <- c(-1.36, 48.19, -54.78, -17.14, 11.76, 15.77, 152.32, -11.52, -39.19, 0.0004, 15.56, -9.58, 7.32, 26.25, 0.10)
 
-label <- c("Broadband availability at 25 mbps", "Subscription rate", "Share of population age 25+ with\n high school diploma or less",
-           "Share of population aged 65+", "Hispanic share of population", "Black share of population", "Foreign born share of population",
-           "Rural neighborhood", "Poverty rate", "Population density per sq. mile", "Families share of population", "Occupied share of properties", 
-           "Owned share of properties", "Single share of properties", "Property median year built")
+label <- c("25mbps broadband availability", "Subscription rate", "Age 25+ with <=HS educ(Population share)",
+           "Aged 65+ (Population share)", "Hispanic (Population share)", "Black (Population share)", "Foreign born (Population share)",
+           "Rural neighborhood", "Poverty rate", "Population density/sq.mile", "Families (Population share)", "Occupied (Property share)", 
+           "Owned (Property share)", "Single (Property share)", "Property median year built")
 
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
@@ -456,8 +456,14 @@ fig <- ggplot(data = lm_dat, aes(x = reorder(label, value), y = value)) +
   geom_bar(stat = "identity", position = "dodge", width = 0.7, aes(fill = variable)) +
   coord_flip() +
   scale_fill_manual("Effect size", values = cbPalette[2:3], labels = c("Property value", "Gross rent")) +
-  labs(x = "", y = "% change", title = "Estimated % change in median property value and median rent per unit increase \nin independent variable", 
+  labs(x = "", y = "% change", title = "Estimated % change in median property value and median rent\n per unit increase in independent variable", 
        caption = "Source: ACS, 2015. All variables significant at p<0.001, except occupied and single rate for property value predictions.") +
-  scale_y_continuous(breaks = seq(from = -100, to = 400, by = 30))
+  scale_y_continuous(breaks = seq(from = -100, to = 400, by = 30)) +
+  theme(legend.position = c(0.8, 0.2), 
+        axis.text = element_text(size = 16),
+        axis.title = element_text(size = 18, face = "bold"),
+        legend.title = element_text(size = 14), 
+        legend.text = element_text(size = 12),
+        plot.title = element_text(size = 20))
 fig
 

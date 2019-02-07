@@ -345,11 +345,11 @@ summary(lm.out)
 # Figure B2:
 effect1 <- c(0.28,-0.09,-0.52,-0.37,-0.15,-0.028,0,0.005,-0.02,0.37)*100
 effect2 <- c(0.25,-0.11,-0.50,-0.38,-0.15,-0.06,0,0.005,0.03,0.34)*100
-label <- c("Broadband Availability at 25 Mbps","Rural Neighborhood",
-            "Share of Population over Age 25 with\n No More than a High School Diploma","Poverty Rate",
-            "Share of Population Aged 65 or Older","Hispanic Share of Population",
-            "Black Share of Population","Population Density Per Mile",
-            "Families Share of Population","Foreign Born Share of Population")
+label <- c("25 Mbps broadband availability","Rural neighborhood",
+            "Age 25+ with <= HS educ. (Population share)","Poverty Rate",
+            "Aged 65+ (Population share)","Hispanic (Population share)",
+            "Black (Population share)","Population density/sq.mile",
+            "Families (Population share)","Foreign born (Population share)")
 library(reshape2)
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 lm_dat <- melt(data.frame(label,effect2,effect1))
@@ -358,11 +358,17 @@ lm_dat$label <- ordered(lm_dat$label,levels=rev(label))
 fig_b2 <- ggplot(data=lm_dat, aes(x=label, y=value)) +
   geom_bar(stat='identity',position="dodge",width=0.7,aes(fill=variable)) +
   coord_flip() +
-  theme_bw() +
+  theme(legend.position = c(0.8, 0.2), 
+           axis.text = element_text(size = 16),
+           axis.title = element_text(size = 18, face = "bold"),
+           legend.title = element_text(size = 14), 
+           legend.text = element_text(size = 12),
+           plot.title = element_text(size = 20)) +
   scale_fill_manual("Effect Size",values=cbPalette[2:3],labels=c("Brookings","Replication")) +
-  xlab("") + ylab("") +
-  scale_y_continuous(breaks=c(-40,-20,0,20,40),labels=c("-40%","-20%","0%","20%","40%")) +
+  xlab("") + ylab("% change") +
+  scale_y_continuous(breaks=c(-40,-30, -20, -10, 0, 10, 20, 30, 40)) +
   ggtitle("Estimated change in neighborhood broadband subscription rate per\n 1 percentage point increase in the variable, 2015.")
+fig_b2
 
 png("figB2.png",width=800,height=400)
 fig_b2
