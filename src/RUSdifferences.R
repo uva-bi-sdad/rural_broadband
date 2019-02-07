@@ -38,7 +38,10 @@ acs_vars <- c("B15003_001","B15003_002","B15003_003","B15003_004","B15003_005","
               "B03003_001","B03003_003",
               "B02001_001","B02001_003",
               "B09019_002","B09019_003",
-              "B05002_001","B05002_013")
+              "B05002_001","B05002_013",
+              "B00002_001", "B25001_001", "B25002_001", "B25002_002", "B25002_003", "B25003_001", "B25003_002", "B25003_003", "B25077_001", 
+              "B25024_001", "B25024_002", "B25024_003", "B25024_004", "B25024_005", "B25024_006", "B25024_007", "B25024_008", "B25024_009", "B25024_010", "B25024_011",
+              "B25035_001", "B25041_001", "B25041_002", "B25041_003", "B25041_004", "B25041_005", "B25041_006", "B25041_007", "B25064_001", "B25065_001")
 
 acs_est <- get_acs(geography = "tract", state = "Virginia", variables = acs_vars, year = 2015, cache_table = TRUE,
                    geometry = TRUE, keep_geo_vars = TRUE, output = "wide")
@@ -59,8 +62,44 @@ acs_estimates <- acs_est %>% transmute(
   hispanic = B03003_003E / B03003_001E,
   black = B02001_003E / B02001_001E,
   family = B09019_003E / B09019_002E,
-  foreign = B05002_013E / B05002_001E)
+  foreign = B05002_013E / B05002_001E,
+  hunits_total_unw = B00002_001E,
+  hunits_total = B25001_001E,
+  occstatus_total = B25002_001E,
+  occstatus_occup = B25002_002E,
+  occstatus_vac = B25002_003E,
+  tenure_total= B25003_001E,
+  tenure_own = B25003_002E,
+  tenure_rent = B25003_003E,
+  median_val = B25077_001E,
+  unitno_total = B25024_001E,
+  unitno_1det = B25024_002E,
+  unitno_1at = B25024_003E,
+  unitno_2 = B25024_004E,
+  unitno_3or4 = B25024_005E,
+  unitno_5to9 = B25024_006E,
+  unitno_10to19 = B25024_007E,
+  unitno_20to49 = B25024_008E,
+  unitno_50plus = B25024_009E,
+  unitno_mobile = B25024_010E,
+  unitno_other = B25024_011E,
+  median_yrbuilt = B25035_001E,
+  bed_total = B25041_001E,
+  bed_none = B25041_002E,
+  bed_1 = B25041_003E,
+  bed_2 = B25041_004E,
+  bed_3 = B25041_005E,
+  bed_4 = B25041_006E,
+  bed_5plus= B25041_007E,
+  rent_mediangross = B25064_001E, 
+  rent_aggreggross = B25065_001E)
 summary(acs_estimates)
+
+acs_estimates <- acs_estimates %>% mutate(
+  rate_occupied = occstatus_occup/occstatus_total, 
+  rate_owned = tenure_own/tenure_total,
+  rate_single = (unitno_1det+unitno_1at)/unitno_total
+)
 
 acs_estimates <- acs_estimates %>% st_set_geometry(NULL) 
 
@@ -257,13 +296,13 @@ ggplot() +
 
 # Tables
 inel <- ineligible %>% st_set_geometry(NULL) %>% 
-  select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign) %>% 
+  select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign, median_val, rent_mediangross, median_yrbuilt, rate_occupied, rate_owned, rate_single) %>% 
   summarize_all(c("mean", "median", "sd", "min", "max"), na.rm = TRUE) %>% 
   round(2) %>%
   gather("variable", "value_inel")
 
 el <- eligible %>% st_set_geometry(NULL) %>% 
-  select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign) %>% 
+  select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign, median_val, rent_mediangross, median_yrbuilt, rate_occupied, rate_owned, rate_single) %>% 
   summarize_all(c("mean", "median", "sd", "min", "max"), na.rm = TRUE) %>% 
   round(2) %>%
   gather("variable", "value_el")
@@ -273,14 +312,14 @@ comparison <- merge(inel, el, by = "variable", sort = FALSE)
 # Tables when population != 0
 inel_nozero <- ineligible %>% st_set_geometry(NULL) %>% 
   filter(population != 0) %>%
-  select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign) %>% 
+  select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign, median_val, rent_mediangross, median_yrbuilt, rate_occupied, rate_owned, rate_single) %>% 
   summarize_all(c("mean", "median", "sd", "min", "max"), na.rm = TRUE) %>% 
   round(2) %>%
   gather("variable", "value_inel")
 
 el_nozero <- eligible %>% st_set_geometry(NULL) %>% 
   filter(population != 0) %>%
-  select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign) %>% 
+  select(population, hs_or_less, poverty, age_65_older, hispanic, black, family, foreign, median_val, rent_mediangross, median_yrbuilt, rate_occupied, rate_owned, rate_single) %>% 
   summarize_all(c("mean", "median", "sd", "min", "max"), na.rm = TRUE) %>% 
   round(2) %>%
   gather("variable", "value_el")
