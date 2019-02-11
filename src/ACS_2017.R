@@ -65,11 +65,27 @@ acs_est2$GEOID <- as.numeric(acs_est2$GEOID)
 tract_data2 <- tract_data %>% left_join(acs_est2,by="GEOID")
 
 
+# also join subscription_continuous_200k from the FCC data
+fcc_subscription <- read.csv("data/fcc_subscription/tract_map_dec_2015.csv")
+tract_data3 <- tract_data2 %>% left_join(fcc_subscription %>% select(GEOID=tractcode,subscription_200k=pcat_all), by="GEOID")
+
+# turn subscription quintiles into a continuous response variable by taking the center of each bin
+tract_data3$subscription_continuous_200k <- pmax(0,tract_data3$subscription_200k/5-0.1)
+
+
+
 png("output/broadband_subscription_rate.png",height=400,width=600)
 hist(tract_data2$subscription_continuous,breaks = c(0,0.2,0.4,0.6,0.8,1.0),freq=FALSE,ylim=c(0,3),xlab="Broadband Subscription Rate",main="",xaxt="n")
 lines(density(tract_data2$broadband_acs,na.rm=TRUE),col=2)
 axis(1, at=c(0,0.2,0.4,0.6,0.8,1), labels=c("0%","20%","40%","60%","80%","100%"))
 dev.off()
+
+png("output/broadband_subscription_rate_200k.png",height=400,width=600)
+hist(tract_data3$subscription_continuous_200k,breaks = c(0,0.2,0.4,0.6,0.8,1.0),freq=FALSE,ylim=c(0,3),xlab="Broadband Subscription Rate",main="",xaxt="n")
+lines(density(tract_data2$broadband_acs,na.rm=TRUE),col=2)
+axis(1, at=c(0,0.2,0.4,0.6,0.8,1), labels=c("0%","20%","40%","60%","80%","100%"))
+dev.off()
+
 
 # boxplot showing association between variables
 sum(tract_data2$broadband_acs==0,na.rm=T) # only 19 observations; remove
@@ -82,8 +98,21 @@ boxplot(100*broadband_acs~subscription_continuous,data=(tract_data2 %>% filter(s
 axis(1, at=1:5, labels=c("<20%","20-40%","40-60%","60-80%",">80%"))
 dev.off()
 
+png("output/acs_vs_FCC_subscription_200k.png",height=500,width=700)
+boxplot(100*broadband_acs~subscription_continuous_200k,data=(tract_data3 %>% filter(subscription_continuous_200k>0)),
+        xlab="FCC Broadband Subscription above 200 kbps", ylab="ACS Q10 %Broadband Subscription",
+        xaxt="n")
+axis(1, at=1:5, labels=c("<20%","20-40%","40-60%","60-80%",">80%"))
+dev.off()
+
+
+
 cor(tract_data2$broadband_acs, tract_data2$subscription_continuous,use="complete.obs")
 # pearson correlation = 0.6373016
+
+cor(tract_data3$broadband_acs, tract_data3$subscription_continuous_200k,use="complete.obs")
+# pearson correlation = 0.7110025
+
 
 # -------------------------------------------------
 # plot ACS broadband by Census Tract for VA

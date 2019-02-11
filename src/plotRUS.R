@@ -26,6 +26,7 @@ library(dplyr)
 library(sp)
 library(rgdal)
 library(tidycensus)
+library(tigris)
 
 #setwd("~/Desktop/Rural_Broadband/RUSregions")
 
@@ -66,9 +67,25 @@ plot(urbanized_areas_VA,add=TRUE,col="red")
 plot(places_over20k,add=TRUE,col="green") 
 
 # NOTE: ineligible areas on Rural Development website looks nearly the same as
-# map of 2010 urbanized areas + places
+#  map of 2010 urbanized areas + places
 
 # To this map also add:
-# unavailabile by block group (no providors at 10 Mbps according to latest FCC data)
+# unavailabile by Census block (no providors at 10 Mbps according to latest FCC data)
 # => show a reduced map of eligible regions in VA
-# compare demographic differences between eligible and uneligible regions
+# => join shapefiles to a single geography (merging places, urbanzied areas, and Census blocks;
+#     merge at the level of Census block; approximate any Census block in a CDP as part of that CDP)
+
+blocks_VA <- blocks(state="VA") # this is big! 285,862 Census blocks in VA. join by GEOID10
+save.image("data/VA_eligibility.RData")
+
+# join to blocks with no providors
+# 'fcc_availability2' has #providors, Census block 2010 population for all blocks. join to blocks_VA
+load("data/brookings_fit.RData")
+
+
+# compare demographic differences between eligible and uneligible regions at the Census block level
+#   (start by taking Block Group estimates from ACS and then use proportional allocation;
+#    calculate %population in each Block Group that is eligible using decennial block pop.)
+
+
+
