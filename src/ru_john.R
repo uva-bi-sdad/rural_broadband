@@ -65,10 +65,12 @@ table1(rus_infraborr, rus_infraborr$BORROWER, rus_infraborr$CITY, rus_infraborr$
 ggplot(data = rus_infraborr) +
   geom_sf(aes(fill = BORROWER), lwd = 0)  + 
   labs(title = "RUS borrower companies?", fill = "Borrower") +
-  theme(axis.text = element_text(size = 8),
+  theme(legend.position = "bottom", 
+        legend.direction = "vertical",
+        axis.text = element_text(size = 8),
         axis.title = element_text(size = 18, face = "bold"),
-        legend.title = element_text(size = 14), 
-        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 10), 
+        legend.text = element_text(size = 8),
         plot.title = element_text(size = 20))
 
 # rus_infrastructure
