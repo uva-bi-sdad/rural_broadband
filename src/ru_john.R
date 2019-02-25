@@ -34,9 +34,26 @@ plot(st_geometry(rus_infrastructure))
 gg_miss_var(rus_approved)
 table1(rus_approved, rus_approved$STATUS, rus_approved$SERVICETYP, rus_approved$SERVICELEV, rus_approved$PROGRAMTYP, rus_approved$PROGRAMSER, rus_approved$SERVICEA_1,
        rus_approved$APPSTATUSS, rus_approved$SUM_HOUSEH, rus_approved$SUM_HOUSIN, rus_approved$SUM_AREA_L, rus_approved$UL_SPEED, rus_approved$TECHTYPE, rus_approved$SPEED_CODE,
-       rus_approved$PCT_HISPEE, rus_approved$DL_SPEED, na.rm = FALSE)
+       rus_approved$PCT_HISPEE, rus_approved$DL_SPEED, na.rm = FALSE, export = "rus_approved")
 
 ggplot(data = rus_approved) +
-  geom_sf(aes(fill = SUM_HOUSEH), lwd = 0) +
+  geom_sf(aes(fill = SERVICETYP), lwd = 0) +
   coord_sf(xlim = c(-15000000, -7000000), ylim = c(2500000, 7000000), expand = FALSE)
+
+ggplot(data = rus_approved) +
+  geom_sf(aes(fill = PROGRAMTYP), lwd = 0)  +
+  coord_sf(ylim = c(2500000, 10000000), expand = FALSE)  + 
+  labs(title = "Approved RUS applications by program", fill = "Program type")
+
+ggplot(data = rus_approved) +
+  geom_sf(aes(fill = PROGRAMTYP), lwd = 0) +
+  coord_sf(xlim = c(-14200000, -7500000), ylim = c(2500000, 7100000), expand = FALSE) + 
+  labs(title = "Approved RUS applications by program", fill = "Program type", subtitle = "Note: Data shown only for contiguous US states.") +
+  theme(legend.position = "bottom", 
+        axis.text = element_text(size = 16),
+        axis.title = element_text(size = 18, face = "bold"),
+        legend.title = element_text(size = 14), 
+        legend.text = element_text(size = 12),
+        plot.title = element_text(size = 20))
+
 
