@@ -159,12 +159,13 @@ acs_est <- acs_est %>% mutate(
 
 
 #
-# Join data ---------------------------------------------------------------------------------------------------------------
+# Join data and write out ---------------------------------------------------------------------------------------------------------------
 #
 
 acs_est$GEOID <- as.numeric(acs_est$GEOID)
 tract_data5 <- tract_data5 %>% left_join(acs_est, by = "GEOID")
 
+write.csv(tract_data5, file = "data/acs_property.csv", row.names = F)
 
 #
 # Missingness check -------------------------------------------------------------------------------------
