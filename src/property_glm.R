@@ -1,9 +1,8 @@
 library(dplyr)
-library(naniar)
 library(DHARMa)
 library(boot)
 library(stargazer)
-
+library(ggfortify)
 
 # GLM
 # No assumption of normality, constant variance, or additivity of effects. Instead:
@@ -45,6 +44,41 @@ nomiss <- propdata %>% select(GEOID, STATEFP, COUNTYFP, NAME, name2, available, 
                        filter(!is.na(available), !is.na(subscription_continuous), !is.na(hs_or_less), !is.na(age_65_older),
                               !is.na(hispanic), !is.na(black), !is.na(foreign), !is.na(rural), !is.na(poverty), !is.na(density),
                               !is.na(family), !is.na(rate_occupied), !is.na(rate_owned), !is.na(rate_single), !is.na(median_yrbuilt))
+
+#
+# First re-do OLS  (see propertyvalues.R) --------------------------------------------------------------------------------------------------------------
+#
+
+# subscription_continuous excluded (available included)
+
+nomiss$log_medianval <- log(nomiss$median_val)
+
+fit_ols1 <- lm(log_medianval ~ available,
+                  data = nomiss)
+fit_ols2 <- lm(log_medianval ~ available + 
+                  hs_or_less + age_65_older + hispanic + black + foreign + rural + poverty + density + family,
+                  data = nomiss)
+fit_ols3 <- lm(log_medianval ~ available + 
+                  hs_or_less + age_65_older + hispanic + black + foreign + rural + poverty + density + family +
+                  rate_occupied + rate_owned + rate_single + median_yrbuilt,
+                  data = nomiss)
+
+robust_se1 <- as.vector(summary(fit_ols1, robust = T)$coefficients[, "Std. Error"])
+robust_se2 <- as.vector(summary(fit_ols2, robust = T)$coefficients[, "Std. Error"])
+robust_se3 <- as.vector(summary(fit_ols3, robust = T)$coefficients[, "Std. Error"])
+stargazer(fit_ols1, fit_ols2, fit_ols3, digits = 2, no.space = TRUE, type = "text", se = list(robust_se1, robust_se2, robust_se3), star.cutoffs = c(0.05, 0.01, 0.001))
+
+# Exponentiate the coefficient, subtract one from this number, and multiply by 100. 
+# This gives the percent increase (or decrease) in the response for every one-unit increase in the independent variable. 
+myfunction <- function(x){
+  (exp(x)-1)*100
+}
+
+stargazer(fit_ols1, fit_ols2, fit_ols3, digits = 2, no.space = TRUE, type = "text", se = list(robust_se1, robust_se2, robust_se3),
+          apply.coef = myfunction)
+
+# Diagnostics look better than non-log transformed
+autoplot(fit_ols3)
 
 
 #
@@ -91,7 +125,7 @@ stargazer(fit_gamma1, fit_gamma2, fit_gamma3, digits = 2, no.space = TRUE, type 
 # Residuals v. predicted: residuals against expected (fitted) value, is augmented with three red lines which should (if the model is correct) be horizontal, straight, and at
 # quantiles 0.25, 0.5, 0.75 (because they arebased on quantile regression of the residuals at these three Qs). Some deviations from this are to be expected by chance,
 # even for a perfect model, especially if the sample size is small.
-sim_gamma  <-  simulateResiduals(fit_gamma3,  n = 250, plot = TRUE)
+sim_gamma  <-  simulateResiduals(fit_gamma3,  n = 550, plot = TRUE)
 plot(sim_gamma)
 
 # GOF tests
@@ -147,7 +181,7 @@ stargazer(fit_invg1, fit_invg2, fit_invg3, digits = 2, no.space = TRUE, type = "
 # Residuals v. predicted: residuals against expected (fitted) value, is augmented with three red lines which should (if the model is correct) be horizontal, straight, and at
 # quantiles 0.25, 0.5, 0.75 (because they arebased on quantile regression of the residuals at these three Qs). Some deviations from this are to be expected by chance,
 # even for a perfect model, especially if the sample size is small.
-sim_invg  <-  simulateResiduals(fit_invg3,  n = 250, plot = TRUE)
+sim_invg  <-  simulateResiduals(fit_invg3,  n = 550, plot = TRUE)
 plot(sim_invg)
 
 # GOF tests
@@ -172,3 +206,47 @@ cooks.distance(fit_invg3)
 
 # More plots
 glm.diag.plots(fit_invg3, iden = T)
+
+
+#
+# All three ---------------------------------------------------------------------------------------------------------------------------------
+#
+
+stargazer(fit_ols3, fit_gamma3, fit_invg3, digits = 2, no.space = TRUE, type = "text", align = TRUE, df = TRUE, star.cutoffs = c(0.05, 0.01, 0.001), single.row = TRUE)
+
+
+#
+# Rural only ---------------------------------------------------------------------------------------------------------------------------------
+#
+
+# Data
+ruralonly <- nomiss %>% filter(rural == TRUE)
+
+# Full models (subscription excluded)
+rural_ols3 <- lm(log_medianval ~ available + 
+                 hs_or_less + age_65_older + hispanic + black + foreign + poverty + density + family +
+                 rate_occupied + rate_owned + rate_single + median_yrbuilt,
+                 data = ruralonly)
+rural_gamma3 <- glm(median_val ~ available +
+                    hs_or_less + age_65_older + hispanic + black + foreign + poverty + density + family +
+                    rate_occupied + rate_owned + rate_single + median_yrbuilt,
+                    data = ruralonly, family = Gamma(link = "log"))
+rural_invg3 <- glm(median_val ~ available +
+                   hs_or_less + age_65_older + hispanic + black + foreign + poverty + density + family +
+                   rate_occupied + rate_owned + rate_single + median_yrbuilt,
+                   data = ruralonly, family = inverse.gaussian(link = "log"))
+
+stargazer(rural_ols3, rural_gamma3, rural_invg3, digits = 2, no.space = TRUE, type = "text", align = TRUE, df = TRUE, star.cutoffs = c(0.05, 0.01, 0.001))
+
+# Diagnostics
+autoplot(rural_ols3)
+
+glm.diag.plots(rural_gamma3)
+sim_gamma_r  <-  simulateResiduals(rural_gamma3,  n = 550, plot = TRUE)
+testDispersion(sim_gamma_r) 
+
+glm.diag.plots(rural_invg3)
+sim_invg_r  <-  simulateResiduals(rural_invg3,  n = 550, plot = TRUE)
+testDispersion(sim_invg_r) 
+
+
