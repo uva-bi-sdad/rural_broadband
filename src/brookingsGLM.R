@@ -62,15 +62,19 @@ fit_ord_prob1 <- MASS::polr(as.factor(subscription_continuous) ~ available +
                            data = nomiss1, Hess = TRUE, method = "probit")
 
 # Diagnostics
-plot(fit_ols)
+plot(fit_ols, which = 1)
+olsplot_qq <- plot(fit_ols, which = 2)
+plot(fit_ols, which = 3)
+plot(resid(fit_ols))
 
-autoplot(fit_ord_log, what = "fitted")
-autoplot(fit_ord_log, what = "qq")
-autoplot(resids(fit_ord_log))
+logplot_fit <- autoplot(fit_ord_log, what = "fitted")
+logplot_qq <- autoplot(fit_ord_log, what = "qq")
+logplot_resid <- autoplot(resids(fit_ord_log))
 
-autoplot(fit_ord_prob, what = "fitted")
-autoplot(fit_ord_prob, what = "qq")
-autoplot(resids(fit_ord_prob))
+probplot_fit <- autoplot(fit_ord_prob, what = "fitted")
+probplot_qq <- autoplot(fit_ord_prob, what = "qq")
+probplot_resid <- autoplot(resids(fit_ord_prob))
 
+grid.arrange(logplot_fit, logplot_qq, logplot_resid, probplot_fit, probplot_qq, probplot_resid, nrow = 3)
 
 
