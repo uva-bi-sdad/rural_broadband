@@ -63,7 +63,7 @@ fit_ord_prob1 <- MASS::polr(as.factor(subscription_continuous) ~ available +
 
 # Diagnostics
 plot(fit_ols, which = 1)
-olsplot_qq <- plot(fit_ols, which = 2)
+plot(fit_ols, which = 2)
 plot(fit_ols, which = 3)
 plot(resid(fit_ols))
 
@@ -75,6 +75,6 @@ probplot_fit <- autoplot(fit_ord_prob, what = "fitted")
 probplot_qq <- autoplot(fit_ord_prob, what = "qq")
 probplot_resid <- autoplot(resids(fit_ord_prob))
 
-grid.arrange(logplot_fit, logplot_qq, logplot_resid, probplot_fit, probplot_qq, probplot_resid, nrow = 3)
+grid.arrange(logplot_fit, logplot_qq, logplot_resid, probplot_fit, probplot_qq, probplot_resid, nrow = 2)
 
 
