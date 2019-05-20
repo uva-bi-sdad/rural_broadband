@@ -245,10 +245,12 @@ autoplot(rural_ols3)
 glm.diag.plots(rural_gamma3)
 sim_gamma_r  <-  simulateResiduals(rural_gamma3,  n = 550, plot = TRUE)
 testDispersion(sim_gamma_r) 
+testResiduals(sim_gamma_r)
 
 glm.diag.plots(rural_invg3)
 sim_invg_r  <-  simulateResiduals(rural_invg3,  n = 550, plot = TRUE)
 testDispersion(sim_invg_r) 
+testResiduals(sim_invg_r)
 
 #
 # Urban only ---------------------------------------------------------------------------------------------------------------------------------
@@ -280,11 +282,12 @@ autoplot(urban_ols3)
 glm.diag.plots(urban_gamma3)
 sim_gamma_r  <-  simulateResiduals(urban_gamma3,  n = 550, plot = TRUE)
 testDispersion(sim_gamma_r) 
+testResiduals(sim_gamma_r)
 
 glm.diag.plots(urban_invg3)
 sim_invg_r  <-  simulateResiduals(urban_invg3,  n = 550, plot = TRUE)
 testDispersion(sim_invg_r) 
-
+testResiduals(sim_invg_r)
 
 #
 # All together -------------------------------------------------------------------------
