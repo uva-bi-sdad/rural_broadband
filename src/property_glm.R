@@ -236,7 +236,8 @@ rural_invg3 <- glm(median_val ~ available +
                    rate_occupied + rate_owned + rate_single + median_yrbuilt,
                    data = ruralonly, family = inverse.gaussian(link = "log"))
 
-stargazer(rural_ols3, rural_gamma3, rural_invg3, digits = 2, no.space = TRUE, type = "text", align = TRUE, df = TRUE, star.cutoffs = c(0.05, 0.01, 0.001))
+stargazer(rural_ols3, rural_gamma3, rural_invg3, digits = 2, no.space = TRUE, type = "text", align = TRUE, df = TRUE, star.cutoffs = c(0.05, 0.01, 0.001),
+          single.row = TRUE)
 
 # Diagnostics
 autoplot(rural_ols3)
@@ -248,5 +249,50 @@ testDispersion(sim_gamma_r)
 glm.diag.plots(rural_invg3)
 sim_invg_r  <-  simulateResiduals(rural_invg3,  n = 550, plot = TRUE)
 testDispersion(sim_invg_r) 
+
+#
+# Urban only ---------------------------------------------------------------------------------------------------------------------------------
+#
+
+# Data
+urbanonly <- nomiss %>% filter(rural == FALSE)
+
+# Full models (subscription excluded)
+urban_ols3 <- lm(log_medianval ~ available + 
+                   hs_or_less + age_65_older + hispanic + black + foreign + poverty + density + family +
+                   rate_occupied + rate_owned + rate_single + median_yrbuilt,
+                 data = urbanonly)
+urban_gamma3 <- glm(median_val ~ available +
+                      hs_or_less + age_65_older + hispanic + black + foreign + poverty + density + family +
+                      rate_occupied + rate_owned + rate_single + median_yrbuilt,
+                    data = urbanonly, family = Gamma(link = "log"))
+urban_invg3 <- glm(median_val ~ available +
+                     hs_or_less + age_65_older + hispanic + black + foreign + poverty + density + family +
+                     rate_occupied + rate_owned + rate_single + median_yrbuilt,
+                   data = urbanonly, family = inverse.gaussian(link = "log"))
+
+stargazer(urban_ols3, urban_gamma3, urban_invg3, digits = 2, no.space = TRUE, type = "text", align = TRUE, df = TRUE, star.cutoffs = c(0.05, 0.01, 0.001),
+          single.row = TRUE)
+
+# Diagnostics
+autoplot(urban_ols3)
+
+glm.diag.plots(urban_gamma3)
+sim_gamma_r  <-  simulateResiduals(urban_gamma3,  n = 550, plot = TRUE)
+testDispersion(sim_gamma_r) 
+
+glm.diag.plots(urban_invg3)
+sim_invg_r  <-  simulateResiduals(urban_invg3,  n = 550, plot = TRUE)
+testDispersion(sim_invg_r) 
+
+
+#
+# All together -------------------------------------------------------------------------
+#
+
+stargazer(rural_ols3, urban_ols3, rural_gamma3, urban_gamma3, rural_invg3, urban_invg3, digits = 2, no.space = TRUE, type = "text", align = TRUE, df = TRUE, star.cutoffs = c(0.05, 0.01, 0.001),
+          single.row = TRUE, column.labels = c("OLS R", "OLS U", "Gamma R", "Gamma U", "InvG R", "InvG U"), 
+          covariate.labels = c("BB available", "Prop <HS", "Prop 65+", "Prop Hispanic", "Prop black", "Prop foreign", "Prop poverty", "Pop density", "Prop family", "Rate occupied", "Rate owned",
+          "Rate single", "Median year built"))
 
 
