@@ -21,9 +21,11 @@ states <- states_url %>%
 states <- states[[1]] 
 
 # Get state names only
-state_names <- states$`State Name`
+state_names <- states$`Name &postal abbreviation[1]`[2:51]
 
-# Fix blank space to - for URLs
+# Fix and remove blank space to - for URLs
+state_names <- str_replace_all(state_names, "\\[upper-alpha 3\\]", "")
+state_names <- str_replace_all(state_names, "\\[upper-alpha 4\\]", "")
 state_names <- str_replace_all(state_names, " ", "-")
 
 # Make state URLs
