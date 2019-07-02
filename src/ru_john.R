@@ -139,6 +139,18 @@ title("Approved")
 table1(approved_clip, approved_clip$name, approved_clip$PROGRAMSER, na.rm = FALSE, digits = 2)
 table(approved_clip$name, approved_clip$PROGRAMSER)
 
+ggplot() +
+  geom_sf(data = vacounties, color = "#2b2b2b", fill = "white", size = 0.12) +
+  geom_sf(data = approved_clip, fill = "darkblue", lwd = 0) +
+  labs(title = "RUS application (?) locations", fill = "Program", subtitle = "Note: Data shown for Virginia only.") +
+  theme(legend.position = "bottom", panel.background = element_blank(),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 16),
+        axis.title = element_text(size = 18, face = "bold"),
+        legend.title = element_text(size = 14), 
+        legend.text = element_text(size = 12),
+        plot.title = element_text(size = 20))
+
 # Get Virginia grants only: Borrower --> there are 0
 rus_infraborr <- st_transform(rus_infraborr, 32146)
 
@@ -159,3 +171,17 @@ title("Infrastructure")
 
 table1(infrastructure_clip, infrastructure_clip$name, infrastructure_clip$BORROWER, na.rm = FALSE, digits = 2)
 table(infrastructure_clip$name, infrastructure_clip$BORROWER)
+
+# All together
+ggplot() +
+  geom_sf(data = vacounties, color = "#2b2b2b", fill = "white", size = 0.12) +
+  geom_sf(data = approved_clip, fill = "darkblue", lwd = 0) +
+  geom_sf(data = infrastructure_clip, fill = "darkblue", lwd = 0) +
+  labs(title = "RUS application (?) locations", fill = "Program", subtitle = "Note: Data shown for Virginia only.") +
+  theme(legend.position = "bottom", panel.background = element_blank(),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 16),
+        axis.title = element_text(size = 18, face = "bold"),
+        legend.title = element_text(size = 14), 
+        legend.text = element_text(size = 12),
+        plot.title = element_text(size = 20))
