@@ -6,6 +6,8 @@ library(ggplot2)
 library(maps)
 library(ggthemes)
 library(fiftystater)
+library(USAboundaries)
+
 
 #
 # Read in data ------------------------------------------------------------------------------------------
@@ -35,9 +37,6 @@ ggplot() +
   geom_sf(data = usa, color = "#2b2b2b", fill = "white", size = 0.125) +
   coord_sf(crs = st_crs("+proj=laea +lat_0=45 +lon_0=-100 +x_0=0 +y_0=0 +a=6370997 +b=6370997 +units=m +no_defs"), datum = NA) +
   ggthemes::theme_map()
-
-
-geom_sf(data = USA, color = "#2b2b2b", fill = "white", size  =0.125)
 
 
 #
@@ -110,3 +109,53 @@ ggplot() +
         legend.text = element_text(size = 12),
         plot.title = element_text(size = 20))  +
   scale_fill_viridis_d(option = "viridis")
+
+
+#
+# Try to identify Virginia grants -----------------------------------------------------------------------
+#
+
+# Get geography
+vacounties <- us_counties(states = "Virginia", resolution = "high")
+plot(st_geometry(vacounties))
+
+# Fix projection
+st_crs(vacounties)
+
+va_projection <- state_plane("VA")
+vacounties <- st_transform(vacounties, va_projection)
+
+plot(st_geometry(vacounties), graticule = TRUE)
+
+# Get Virginia grants only: Approved --> there are 49
+rus_approved <- st_transform(rus_approved, 32146)
+
+approved_clip <- st_intersection(vacounties, rus_approved) 
+
+plot(st_geometry(vacounties))
+plot(st_geometry(approved_clip), col = "red", add = TRUE)
+title("Approved")
+
+table1(approved_clip, approved_clip$name, approved_clip$PROGRAMSER, na.rm = FALSE, digits = 2)
+table(approved_clip$name, approved_clip$PROGRAMSER)
+
+# Get Virginia grants only: Borrower --> there are 0
+rus_infraborr <- st_transform(rus_infraborr, 32146)
+
+infraborr_clip <- st_intersection(vacounties, rus_infraborr) 
+
+plot(st_geometry(vacounties))
+plot(st_geometry(infraborr_clip), col = "red", add = TRUE)
+title("Borrower")
+
+# Get Virginia grants only: Infrastructure --> there are 17
+rus_infrastructure <- st_transform(rus_infrastructure, 32146)
+
+infrastructure_clip <- st_intersection(vacounties, rus_infrastructure) 
+
+plot(st_geometry(vacounties))
+plot(st_geometry(infrastructure_clip), col = "red", add = TRUE)
+title("Infrastructure")
+
+table1(infrastructure_clip, infrastructure_clip$name, infrastructure_clip$BORROWER, na.rm = FALSE, digits = 2)
+table(infrastructure_clip$name, infrastructure_clip$BORROWER)
