@@ -138,6 +138,7 @@ title("Approved")
 
 table1(approved_clip, approved_clip$name, approved_clip$PROGRAMSER, na.rm = FALSE, digits = 2)
 table(approved_clip$name, approved_clip$PROGRAMSER)
+table1(approved_clip, approved_clip$name)
 
 ggplot() +
   geom_sf(data = vacounties, color = "#2b2b2b", fill = "white", size = 0.12) +
@@ -171,12 +172,13 @@ title("Infrastructure")
 
 table1(infrastructure_clip, infrastructure_clip$name, infrastructure_clip$BORROWER, na.rm = FALSE, digits = 2)
 table(infrastructure_clip$name, infrastructure_clip$BORROWER)
+table1(infrastructure_clip, infrastructure_clip$name)
 
 # All together
 ggplot() +
   geom_sf(data = vacounties, color = "#2b2b2b", fill = "white", size = 0.12) +
-  geom_sf(data = approved_clip, fill = "darkblue", lwd = 0) +
-  geom_sf(data = infrastructure_clip, fill = "darkblue", lwd = 0) +
+  geom_sf(data = approved_clip, fill = "red", lwd = 1.3) +
+  geom_sf(data = infrastructure_clip, fill = "red", lwd = 1.3) +
   labs(title = "RUS application (?) locations", fill = "Program", subtitle = "Note: Data shown for Virginia only.") +
   theme(legend.position = "bottom", panel.background = element_blank(),
         panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
@@ -185,3 +187,23 @@ ggplot() +
         legend.title = element_text(size = 14), 
         legend.text = element_text(size = 12),
         plot.title = element_text(size = 20))
+
+# Only CC
+ggplot() +
+  geom_sf(data = vacounties, color = "#2b2b2b", fill = "white", size = 0.12) +
+  geom_sf(data = test, fill = "darkgrey", lwd = 1.3) +
+  labs(title = "RUS Community Connect application (?) locations", fill = "Program", subtitle = "Note: Data shown for Virginia only.") +
+  theme(legend.position = "bottom", panel.background = element_blank(),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 16),
+        axis.title = element_text(size = 18, face = "bold"),
+        legend.title = element_text(size = 14), 
+        legend.text = element_text(size = 12),
+        plot.title = element_text(size = 20))
+
+
+table1(filter(approved_clip, PROGRAMTYP == "Community Connect" | PROGRAMTYP == "Community Connect Grant Program"), approved_clip$name, approved_clip$PROGRAMSER, na.rm = FALSE, digits = 2)
+table1(test, test$name, test$PROGRAMTYP)
+
+test <- approved_clip %>% filter(PROGRAMTYP == "Community Connect" | PROGRAMTYP == "Community Connect Grant Program")
+table1(test, test$name)
