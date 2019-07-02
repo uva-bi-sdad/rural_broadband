@@ -52,7 +52,7 @@ st_crs(rus_approved)
 gg_miss_var(rus_approved)
 table1(rus_approved, rus_approved$STATUS, rus_approved$SERVICETYP, rus_approved$SERVICELEV, rus_approved$PROGRAMTYP, rus_approved$PROGRAMSER, rus_approved$SERVICEA_1,
        rus_approved$APPSTATUSS, rus_approved$SUM_HOUSEH, rus_approved$SUM_HOUSIN, rus_approved$SUM_AREA_L, rus_approved$UL_SPEED, rus_approved$TECHTYPE, rus_approved$SPEED_CODE,
-       rus_approved$PCT_HISPEE, rus_approved$DL_SPEED, na.rm = FALSE, export = "rus_approved")
+       rus_approved$PCT_HISPEE, rus_approved$DL_SPEED, na.rm = FALSE)
 
 ggplot() +
   geom_sf(data = usa, color = "#2b2b2b", fill = "white", size = 0.12) +
@@ -70,7 +70,7 @@ ggplot() +
 # rus_infraborr
 gg_miss_var(rus_infraborr)
 table1(rus_infraborr, rus_infraborr$BORROWER, rus_infraborr$CITY, rus_infraborr$STATE, rus_infraborr$NTCA, rus_infraborr$SPEED_CODE, rus_infraborr$TECHTYPE,
-       rus_infraborr$DL_SPEED, rus_infraborr$UL_SPEED, rus_infraborr$PCT_HISPEE, na.rm = FALSE, export = "rus_infraborr")
+       rus_infraborr$DL_SPEED, rus_infraborr$UL_SPEED, rus_infraborr$PCT_HISPEE, na.rm = FALSE)
 
 ggplot() +
   geom_sf(data = usa, color = "#2b2b2b", fill = "white", size = 0.12) +
@@ -89,7 +89,7 @@ ggplot() +
 gg_miss_var(rus_infrastructure)
 table1(rus_infrastructure, rus_infrastructure$CITY, rus_infrastructure$NTCA, rus_infrastructure$STATE, rus_infrastructure$BORROWER, rus_infrastructure$HOUSING_UN,
        rus_infrastructure$HOUSEHOLDS, rus_infrastructure$TOTAL_POPU, rus_infrastructure$SPEED_CODE, rus_infrastructure$TECHTYPE, rus_infrastructure$DL_SPEED, 
-       rus_infrastructure$UL_SPEED, rus_infrastructure$PCT_HISPEE, na.rm = FALSE, export = "rus_infrastructure")
+       rus_infrastructure$UL_SPEED, rus_infrastructure$PCT_HISPEE, na.rm = FALSE)
 
 rus_infrastructure$DL_SPEED1 <- rus_infrastructure$DL_SPEED
 levels(rus_infrastructure$DL_SPEED1) <- list("1 Gbps" = "1 Gbps", "500 Mbps" = "500 Mbps", "250 Mbps" = "250 Mbps", "100 Mbps" = "100 Mbps", 
