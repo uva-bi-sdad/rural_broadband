@@ -12,23 +12,10 @@ library(maditr)
 setwd("~/git/dspg19broadband/data/working/FCC/")
 
 fcc2010_small <- fread("NBM-CBLOCK-CSV-December-2010.csv",
-                       fill=TRUE,
-                       select = c("PROVNAME", "FULLFIPSID", "MAXADDOWN", "MAXADUP")) # FULLFIPSID(7), MAXADDOWN(9)
-fcc2010_small <- fcc2010_small %>%
-  dt_filter(MAXADDOWN %in% 3:11)
+                       fill=TRUE) %>%
+  dt_filter(MAXADDOWN %in% 3:11) %>% distinct()
 
 saveRDS(fcc2010_small, "~/git/rural_broadband/data/working/FCC_working/FCC_SM_FIPSwBBPROVIDERS.RDS")
-# fcc_small_GEOID00 <-  fcc2010_small$FULLFIPSID[fcc2010_small$MAXADDOWN %in% 3:11]
-# fcc_small_provcount <- tapply(X = fcc2010_small$PROVNAME[1:20],
-#             INDEX = fcc2010_small$FULLFIPSID[1:20],
-#             FUN = unique)
-# 
-#  <- data.table(FULLFIPSID = names(x = x[1:2]), PROVNAME = x[1:2])
-# fcc_small_provcount <- fcc2010_small %>% 
-#   group_by(FULLFIPSID, PROVNAME) %>% 
-#   summarise(rows = n()) %>% select(-rows)
-# rm(fcc2010_small); gc(reset = TRUE)
-#fcc_small_provcount2 <- fcc_small_provcount %>% group_by(FULLFIPSID) %>% summarise(provid_ct = n())
 
 fcc2010_large1 <- fread("NBM-Address-Street-CSV-December-2010.csv",fill=TRUE, select = c(5, 10, 13, 14)) # breaks at line 7739714
 fcc2010_large2 <- fread("NBM-Address-Street-CSV-December-2010.csv",fill=TRUE,skip=7739715, select = c(5, 10, 13, 14))
@@ -139,3 +126,5 @@ fcc2010_tract$available786kb[is.na(fcc2010_tract$available786kb)] <- 0
 hist(fcc2010_tract$available786kb)
 setwd("~/git/rural_broadband/data/working/FCC_working/")
 write.csv(fcc2010_tract,file="fcc2010tract.csv",row.names=F)
+
+read.csv("~/git/rural_broadband/data/working/FCC_working/fcc2010tract.csv")

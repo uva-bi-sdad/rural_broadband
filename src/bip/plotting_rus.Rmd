@@ -1,0 +1,122 @@
+---
+title: "Plot RUS & FCC"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(sf, , quietly = T)
+library("ggplot2", lib.loc="/usr/local/lib/R/site-library", quietly = T)
+library(rgdal, quietly = T)
+library("rlang", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")
+library("dplyr", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")
+library(leaflet)
+library(stringr)
+
+
+bip_approved_join <- readRDS("~/git/rural_broadband/data/working/BIP_working/BIP_Approved.RDS")
+states <- readOGR(dsn="~/git/rural_broadband/data/census_geo_cb/",layer="cb_2017_us_state_20m")
+states <- sf::st_as_sf(states)
+
+state_VA <- states[states$NAME=="Virginia",]
+state_VA <- sf::st_as_sf(state_VA)
+
+```
+
+
+```{r }
+bip_approved_join
+
+va_approved <- bip_approved_join %>% mutate(state = str_extract(RUS_ID, "[:alpha:]{2}"),
+         state_match = ifelse(STUSPS == state, 1, 0)) %>% 
+  filter(STUSPS == "VA"|state == "VA")
+va_approved1 <- bip_approved_join %>% mutate(state = str_extract(RUS_ID, "[:alpha:]{2}"),
+         state_match = ifelse(STUSPS == state, 1, 0)) %>% 
+  filter(STUSPS == "VA")
+
+#Map of USA
+ggplot(data = bip_approved_join) + geom_sf(aes(fill = SHAPE_Area)) 
+#Map of Virginia type applications and Virginia located applications? 
+ggplot(data = va_approved) + geom_sf(aes(fill = COMPANY)) 
+#Map of Virginia located applications? 
+ggplot(data = va_approved1) + geom_sf(aes(fill = COMPANY)) 
+
+va_approved <- va_approved %>% st_transform(st_crs(state_VA))
+va_approved1 <- va_approved1 %>% st_transform(st_crs(state_VA))
+
+
+```
+
+
+
+Note - 1 MD application appears because it has a tiny piece of land mass in Virginia
+
+
+```{r}
+
+bip_approved_join <- bip_approved_join %>% st_transform(st_crs(states)) 
+va_approved_join <- bip_approved_join %>% filter(STUSPS  == "VA")
+
+virginia_bip_plot <- leaflet() %>%
+  addTiles %>%
+  addPolygons(data = va_approved1, label = va_approved1$COMPANY, color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    fillColor = ~leaflet::colorFactor("YlOrRd", COMPANY)(COMPANY),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE)) 
+
+
+virginia_bip_plot
+
+leaflet() %>% addTiles() %>% addPolygons(data = bip_approved_join)
+
+RUSIDsbyStateName <- bip_approved_join %>% group_by(RUS_ID, SHAPE_Area, STUSPS) %>% summarise(n = n())
+RUSIDsbyStateCount <- RUSIDsbyStateName %>% group_by(RUS_ID, SHAPE_Area) %>% summarise(n = n())
+RUSIDsbyStateCount %>% filter()
+
+bip_approved_join %>% filter(str_detect(STUSPS, "NC|MD|VA") == TRUE )
+
+divideme_va_DC1101 <- bip_approved_join %>% filter(RUS_ID == "DC1101" & STUSPS == "VA")
+
+divideme_va_DC1101 <- divideme_va_DC1101 %>% st_transform(st_crs(state_VA))
+divideme_va_DC1101
+state_VA
+
+plot(st_intersection(divideme_va_DC1101[1,], state_VA))
+
+
+```
+
+```{r}
+
+va_approved1 #8 rows
+unique(va_approved1$RUS_ID) # 4 IDs
+bip_approved_join %>% filter(RUS_ID %in% unique(va_approved1$RUS_ID)) # 10 Ids
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
