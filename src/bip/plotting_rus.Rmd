@@ -6,10 +6,10 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(sf, , quietly = T)
-library("ggplot2", lib.loc="/usr/local/lib/R/site-library", quietly = T)
-library(rgdal, quietly = T)
 library("rlang", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")
 library("dplyr", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")
+library("ggplot2", lib.loc="/usr/local/lib/R/site-library", quietly = T)
+library(rgdal, quietly = T)
 library(leaflet)
 library(stringr)
 
@@ -25,26 +25,16 @@ state_VA <- sf::st_as_sf(state_VA)
 
 
 ```{r }
-bip_approved_join
+bip_approved_join <- bip_approved_join %>% st_transform(st_crs(states)) 
+va_approved_join <- bip_approved_join %>% filter(STUSPS  == "VA")
 
-va_approved <- bip_approved_join %>% mutate(state = str_extract(RUS_ID, "[:alpha:]{2}"),
-         state_match = ifelse(STUSPS == state, 1, 0)) %>% 
-  filter(STUSPS == "VA"|state == "VA")
-va_approved1 <- bip_approved_join %>% mutate(state = str_extract(RUS_ID, "[:alpha:]{2}"),
-         state_match = ifelse(STUSPS == state, 1, 0)) %>% 
-  filter(STUSPS == "VA")
+```
 
+```{r}
 #Map of USA
 ggplot(data = bip_approved_join) + geom_sf(aes(fill = SHAPE_Area)) 
-#Map of Virginia type applications and Virginia located applications? 
-ggplot(data = va_approved) + geom_sf(aes(fill = COMPANY)) 
 #Map of Virginia located applications? 
-ggplot(data = va_approved1) + geom_sf(aes(fill = COMPANY)) 
-
-va_approved <- va_approved %>% st_transform(st_crs(state_VA))
-va_approved1 <- va_approved1 %>% st_transform(st_crs(state_VA))
-
-
+ggplot(data = va_approved_join) + geom_sf(aes(fill = COMPANY)) 
 ```
 
 
@@ -54,9 +44,6 @@ Note - 1 MD application appears because it has a tiny piece of land mass in Virg
 
 ```{r}
 
-bip_approved_join <- bip_approved_join %>% st_transform(st_crs(states)) 
-va_approved_join <- bip_approved_join %>% filter(STUSPS  == "VA")
-
 virginia_bip_plot <- leaflet() %>%
   addTiles %>%
   addPolygons(data = va_approved1, label = va_approved1$COMPANY, color = "#444444", weight = 1, smoothFactor = 0.5,
@@ -65,37 +52,142 @@ virginia_bip_plot <- leaflet() %>%
     highlightOptions = highlightOptions(color = "white", weight = 2,
       bringToFront = TRUE)) 
 
-
-virginia_bip_plot
-
-leaflet() %>% addTiles() %>% addPolygons(data = bip_approved_join)
-
-RUSIDsbyStateName <- bip_approved_join %>% group_by(RUS_ID, SHAPE_Area, STUSPS) %>% summarise(n = n())
-RUSIDsbyStateCount <- RUSIDsbyStateName %>% group_by(RUS_ID, SHAPE_Area) %>% summarise(n = n())
-RUSIDsbyStateCount %>% filter()
-
-bip_approved_join %>% filter(str_detect(STUSPS, "NC|MD|VA") == TRUE )
-
-divideme_va_DC1101 <- bip_approved_join %>% filter(RUS_ID == "DC1101" & STUSPS == "VA")
-
-divideme_va_DC1101 <- divideme_va_DC1101 %>% st_transform(st_crs(state_VA))
-divideme_va_DC1101
-state_VA
-
-plot(st_intersection(divideme_va_DC1101[1,], state_VA))
-
-
+usa_bip_plot <- leaflet() %>% addTiles() %>% addPolygons(data = bip_approved_join, label = bip_approved_join$COMPANY, color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    fillColor = ~leaflet::colorFactor("YlOrRd", COMPANY)(COMPANY),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE))
 ```
 
 ```{r}
+virginia_bip_plot
+```
 
-va_approved1 #8 rows
-unique(va_approved1$RUS_ID) # 4 IDs
-bip_approved_join %>% filter(RUS_ID %in% unique(va_approved1$RUS_ID)) # 10 Ids
-
+```{r}
+usa_bip_plot
 ```
 
 
+
+```{r}
+RUSIDsbyStateName <- bip_approved_join %>% group_by(RUS_ID, STUSPS) %>% summarise(n = n()) %>% select(-n)
+st_geometry(RUSIDsbyStateName) <- NULL
+RUSIDsbyStateCount <- RUSIDsbyStateName %>% group_by(RUS_ID) %>% summarise(numstates = n())
+multstateRUSIDs <- RUSIDsbyStateCount %>% filter(numstates > 1) %>% select(RUS_ID)
+
+multstateRUSIDs <-  unique(multstateRUSIDs$RUS_ID)
+
+multstateRUSID_applications <- bip_approved_join %>% 
+  filter(RUS_ID %in% multstateRUSIDs) 
+
+multstateRUSID_applications #list of sf dataframes
+
+multstateintersections <- st_intersection(multstateRUSID_applications, states) 
+virginia <- multstateintersections %>% filter(STUSPS.1 == "VA")
+saveRDS(virginia, "~/git/rural_broadband/data/working/BIP_working/virginia_intersection.RDS")
+
+plot(virginia[9])
+
+virginia_bip_plot_intersect <- leaflet() %>%
+  addTiles() %>%
+  addPolygons(data = virginia, label = virginia$COMPANY, color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    fillColor = ~leaflet::colorFactor("YlOrRd", COMPANY)(COMPANY),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE)) 
+
+virginia_bip_plot_intersect
+```
+
+
+
+```{r}
+rm(multstateintersections, multstateRUSID_applications, RUSIDsbyStateCount, RUSIDsbyStateName, state_VA, test, va_approved, va_approved1, virginia_bip_plot, multstateRUSIDs)
+va_10_tracts <- readRDS("~/git/rural_broadband/data/working/Census Shapefiles/virginia2010censustracts.RDS") %>% st_as_sf()
+va_10_blocks <- readRDS("~/git/rural_broadband/data/working/Census Shapefiles/virginia2010censusblocks.RDS") %>% st_as_sf()
+virginia_bip_intersection <- readRDS("~/git/rural_broadband/data/working/BIP_working/virginia_intersection.RDS")
+
+intersection_to_weight <- function(sfdf_custom, sfdf_compare) {
+  sfdf_new <- sfdf_compare %>% 
+    sf::st_intersection(sfdf_custom) %>%
+    mutate(custom_shapearea = st_area(geometry))
+  matchme <- unique(sfdf_new$GEOID10)
+  matches <- sfdf_compare %>% filter(GEOID10 %in% matchme) %>% mutate(comp_shapearea = st_area(geometry)) %>% select(GEOID10, comp_shapearea)
+  st_geometry(matches) <- NULL
+  sfdf_new <- sfdf_new %>% left_join(matches, by = "GEOID10") %>% mutate(weight = custom_shapearea/comp_shapearea)
+  sfdf_new
+}
+
+va_bip_tract_weight <- intersection_to_weight(virginia_bip_intersection, va_10_tracts)
+va_bip_block_weight <- intersection_to_weight(virginia_bip_intersection, va_10_blocks)
+
+saveRDS(va_bip_tract_weight, "~/git/rural_broadband/data/working/BIP_working/va_bip_tract_weight.RDS")
+saveRDS(va_bip_block_weight, "~/git/rural_broadband/data/working/BIP_working/va_bip_block_weight.RDS")
+```
+
+```{r}
+va_bip_tract_weight <- readRDS("~/git/rural_broadband/data/working/BIP_working/va_bip_tract_weight.RDS")
+va_bip_block_weight <- readRDS("~/git/rural_broadband/data/working/BIP_working/va_bip_block_weight.RDS")
+
+dc1101_t<- va_bip_tract_weight %>% filter(RUS_ID == "DC1101")
+WI1117_t<- va_bip_tract_weight %>% filter(RUS_ID == "WI1117")
+NC1104_t<- va_bip_tract_weight %>% filter(RUS_ID == "NC1104")
+VA1112_t<- va_bip_tract_weight %>% filter(RUS_ID == "VA1112")
+
+dc1101_b <- va_bip_block_weight %>% filter(RUS_ID == "DC1101")
+WI1117_b <- va_bip_block_weight %>% filter(RUS_ID == "WI1117")
+NC1104_b <- va_bip_block_weight %>% filter(RUS_ID == "NC1104")
+VA1112_b <- va_bip_block_weight %>% filter(RUS_ID == "VA1112")
+
+# plot(dc1101_t[3])
+# plot(WI1117_t[3])
+# plot(NC1104_t[3])
+# plot(VA1112_t[3])
+# 
+# plot(dc1101_b[4])
+# plot(WI1117_b[4])
+# plot(NC1104_b[4])
+# plot(VA1112_b[4])
+```
+
+```{r}
+plot(va_bip_tract_weight[63])
+plot(dc1101_t[63])
+plot(WI1117_t[63])
+plot(NC1104_t[63])
+plot(VA1112_t[63])
+```
+
+```{r}
+plot(va_bip_block_weight[66])
+plot(dc1101_b[66])
+plot(WI1117_b[66])
+plot(NC1104_b[66])
+plot(VA1112_b[66])
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+install.packages("odbc") #for sql - open database connector
+
+
+con <- DBI::dbConnect(odbc::odbc(), 
+                      Driver = "SQL Server", 
+                      Server = "sdad.policy-analytics.net",
+                      Port= 5432, #1433,
+                      Database = "gis",
+                      UID="dtn2ep",
+                      PWD="dtn2ep")
+```
 
 
 
