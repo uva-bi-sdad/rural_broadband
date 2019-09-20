@@ -103,17 +103,23 @@ FCC_WL_FIPSwBBPROVIDERS <- readRDS("~/git/rural_broadband/data/working/FCC_worki
 
 blocks_w786kb <- readRDS("~/git/rural_broadband/data/working/FCC_working/block_with_786kbps.RDS")
 setwd("~/git/dspg19broadband/data/working/FCC/")
-block_pop <- fread("population_by_census_block_2010.csv",colClasses = c(GEOID = "character"))
-census_2000_to_2010 <- fread("nhgis_blk2000_blk2010_ge.csv",colClasses = c(GEOID00 = "character", GEOID10 = "character"))
+census_2000_to_2010 <- data.table::fread("nhgis_blk2000_blk2010_ge.csv",colClasses = c(GEOID00 = "character", GEOID10 = "character"))
 census_2000_to_2010$available <- 1*(census_2000_to_2010$GEOID00 %in% blocks_w786kb$GEOID00)
 
 rm(blocks_w786kb)
 
-block_with_786kbps_2010 <-census_2000_to_2010 %>% group_by(GEOID10) %>% summarize(percent_available=sum(WEIGHT*available)/sum(WEIGHT))
+#block_with_786kbps_2010 <- census_2000_to_2010 %>% group_by(GEOID10) %>% summarize(percent_available=sum(WEIGHT*available)/sum(WEIGHT))
+
+block_with_786kbps_2010 <- census_2000_to_2010 %>% dt_summarize(percent_available=sum(WEIGHT*available)/sum(WEIGHT), by = GEOID10)
 block_with_786kbps_2010$percent_available[is.na(block_with_786kbps_2010$percent_available)] <- 0
 
-block_pop2 <- (block_pop %>% dplyr::select(GEOID10 = GEOID, population = value)) %>%
-  maditr::dt_left_join(block_with_786kbps_2010,by="GEOID10")
+block_pop <- fread("population_by_census_block_2010.csv",colClasses = c(GEOID = "character"))
+block_pop2 <- block_pop %>% dt_select(GEOID10 = GEOID, population = value) 
+
+block_pop2 <- setnames(block_pop2, old = c("GEOID", "value"), new = c("GEOID10", "population")) 
+block_pop2 <- block_pop2 %>% dt_left_join(block_with_786kbps_2010,by="GEOID10")
+
+saveRDS(block_pop2, "~/git/rural_broadband/data/working/FCC_working/blocks2010_with_786kb.RDS")
 
 hist(block_pop2$percent_available)
 rm(block_pop)
@@ -127,4 +133,4 @@ hist(fcc2010_tract$available786kb)
 setwd("~/git/rural_broadband/data/working/FCC_working/")
 write.csv(fcc2010_tract,file="fcc2010tract.csv",row.names=F)
 
-read.csv("~/git/rural_broadband/data/working/FCC_working/fcc2010tract.csv")
+test <- read.csv("~/git/rural_broadband/data/working/FCC_working/fcc2010tract.csv")

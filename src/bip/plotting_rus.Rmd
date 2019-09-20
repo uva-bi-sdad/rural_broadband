@@ -167,36 +167,94 @@ plot(VA1112_b[66])
 ```
 
 
+```{r}
+va_bip_tract_weight <- readRDS("~/git/rural_broadband/data/working/BIP_working/va_bip_tract_weight.RDS")
+tracts_10_786kb <- read.csv("~/git/rural_broadband/data/working/FCC_working/fcc2010tract.csv")
+va_bip_tract_weight$GEOID10 <- as.numeric(va_bip_tract_weight$GEOID10)
 
+bip_tract_786kb <- va_bip_tract_weight %>% left_join(tracts_10_786kb, by = c("GEOID10" = "TRACTID"))
 
-
-
-
-
-
+plot(bip_tract_786kb[64])
+```
 
 
 ```{r}
-install.packages("odbc") #for sql - open database connector
+va_bip_block_weight <- readRDS("~/git/rural_broadband/data/working/BIP_working/va_bip_block_weight.RDS")
+blocks_10_786kb <- readRDS("~/git/rural_broadband/data/working/FCC_working/blocks2010_with_786kb.RDS")
+
+colnames(va_bip_block_weight)
+colnames(blocks_10_786kb)
+
+bip_block_786kb <- va_bip_block_weight %>% left_join(blocks_10_786kb, by = "GEOID10")
+bip_block_786kb
+
+unique(bip_block_786kb$RUS_ID)
+
+```
+
+``` {r}
+dc1101_t<- bip_tract_786kb %>% filter(RUS_ID == "DC1101")
+WI1117_t<- bip_tract_786kb %>% filter(RUS_ID == "WI1117")
+NC1104_t<- bip_tract_786kb %>% filter(RUS_ID == "NC1104")
+VA1112_t<- bip_tract_786kb %>% filter(RUS_ID == "VA1112")
+
+dc1101_b <- bip_block_786kb %>% filter(RUS_ID == "DC1101")
+WI1117_b <- bip_block_786kb %>% filter(RUS_ID == "WI1117")
+NC1104_b <- bip_block_786kb %>% filter(RUS_ID == "NC1104")
+VA1112_b <- bip_block_786kb %>% filter(RUS_ID == "VA1112")
+```
 
 
-con <- DBI::dbConnect(odbc::odbc(), 
-                      Driver = "SQL Server", 
-                      Server = "sdad.policy-analytics.net",
-                      Port= 5432, #1433,
-                      Database = "gis",
-                      UID="dtn2ep",
-                      PWD="dtn2ep")
+```{r}
+plot(bip_tract_786kb[64])
+plot(dc1101_t[64])
+plot(WI1117_t[64])
+plot(NC1104_t[64])
+plot(VA1112_t[64])
+#bip_tract_786kb[58:65]
+#bip_block_786kb[62:68]
 ```
 
 
 
+```{r}
+plot(bip_block_786kb[68])
+plot(dc1101_b[68])
+plot(WI1117_b[68])
+plot(NC1104_b[68])
+plot(VA1112_b[68])
+```
 
 
+```{r}
+saveRDS(bip_tract_786kb, "~/git/rural_broadband/data/working/BIP_working/bip_tract_786kb.RDS")
+saveRDS(bip_block_786kb, "~/git/rural_broadband/data/working/BIP_working/bip_block_786kb.RDS")
+```
 
+figure out rest of virginia broadband? 
+```{r}
+va_10_tracts <- readRDS("~/git/rural_broadband/data/working/Census Shapefiles/virginia2010censustracts.RDS") %>% st_as_sf()
+va_10_blocks <- readRDS("~/git/rural_broadband/data/working/Census Shapefiles/virginia2010censusblocks.RDS") %>% st_as_sf()
 
+```
 
+```{r}
+# ACS variables
+acsvars <- c("B15003_001","B15003_002","B15003_003","B15003_004","B15003_005","B15003_006","B15003_007","B15003_008","B15003_009", # educational attainment for 25+, sum(cat2-cat18)/total
+             "B15003_010","B15003_011","B15003_012","B15003_013","B15003_014","B15003_015","B15003_016","B15003_017","B15003_018", # educational attainment for 25+, sum(cat2-cat18)/total
+             "B17020_001","B17020_002",                                                                                            # income under poverty level, cat2/total
+             "B01001_001","B01001_020","B01001_021","B01001_022","B01001_023","B01001_024","B01001_025",                           # 65+ population, male65+ plus female65+ / total
+             "B01001_044","B01001_045","B01001_046","B01001_047","B01001_048","B01001_049",                                        # 65+ population, male65+ plus female65+ / total
+             "B03003_001","B03003_003",                                                                                            # hispanic, hispanic/total
+             "B02001_001","B02001_003",                                                                                            # black, black/total
+             "B09019_002","B09019_003",                                                                                            # family households, in family households/in households
+             "B05002_001","B05002_013")                                                                                            # foreign born, foreign/total
 
+# Get tract-level variables from ACS 2012-2016 (5-year)
+acs_tract <- tidycensus::get_acs(geography = "tract", state = "51", variables = acsvars, year = 2016, survey = "acs5", cache_table = TRUE, output = "wide")
+acs_tract
+
+```
 
 
 
