@@ -236,7 +236,26 @@ figure out rest of virginia broadband?
 va_10_tracts <- readRDS("~/git/rural_broadband/data/working/Census Shapefiles/virginia2010censustracts.RDS") %>% st_as_sf()
 va_10_blocks <- readRDS("~/git/rural_broadband/data/working/Census Shapefiles/virginia2010censusblocks.RDS") %>% st_as_sf()
 
+bip_tract_786kb <- readRDS("~/git/rural_broadband/data/working/BIP_working/bip_tract_786kb.RDS")
+bip_block_786kb <- readRDS("~/git/rural_broadband/data/working/BIP_working/bip_block_786kb.RDS")
+bip_tract_786kb
 ```
+
+```{r}
+leaflet() %>% addTiles() %>% 
+  addPolygons(data = bip_tract_786kb, label = bip_tract_786kb$COMPANY, color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    fillColor = ~leaflet::colorNumeric("YlOrRd", available786kb)(available786kb),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE))
+```
+
+```{r}
+leaflet() %>% addTiles() %>% 
+  addPolygons(data = va_10_blocks)
+
+```
+
 
 ```{r}
 # ACS variables

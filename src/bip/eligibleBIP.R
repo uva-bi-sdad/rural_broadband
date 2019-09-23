@@ -32,14 +32,14 @@ library(tidycensus)
 
 census_api_key("853b2a1e71aa0aff0f3db966545e8898c73f0772")
 
-proj4string=CRS('+proj=longlat +ellps=WGS84')
+proj4string = CRS('+proj=longlat +ellps=WGS84')
 
 states <- readOGR(dsn="~/git/dspg19broadband/data/original/cb_2017_us_state_20m",layer="cb_2017_us_state_20m")
 states <- spTransform(states,proj4string)
 state_VA <- states[states@data$NAME=="Virginia",]
 
 urbanized_areas <- readOGR(dsn="~/git/dspg19broadband/data/original/tl_2010_us_uac10",layer="tl_2010_us_uac10")
-urbanized_areas <- spTransform(urbanized_areas,proj4string)
+urbanized_areas <- spTransform(urbanized_areas, proj4string)
 # filter only Ubranized Areas, exclude Urban Clusters
 urbanized_areas <- urbanized_areas[urbanized_areas@data$UATYP10=="U",]
 
@@ -69,5 +69,6 @@ plot(places_over20k,add=TRUE,col="green")
 # NOTE: ineligible areas on Rural Development website looks nearly the same as
 # map of 2010 urbanized areas + places
 
-
+# saveRDS(urbanized_areas_VA, "~/git/rural_broadband/data/working/urbanized_areas_VA_spjosh.RDS")
+# saveRDS(places_over20k, "~/git/rural_broadband/data/working/placesover20k_VA_spjosh.RDS")
 fcctract25 <- read.csv('~/git/dspg19broadband/data/working/fcc_processed_tract_25.csv')
