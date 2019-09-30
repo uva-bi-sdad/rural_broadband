@@ -1,0 +1,142 @@
+---
+title: "Loading BIP applications"
+output: html_document
+header-includes:
+  - \usepackage{color}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE )
+library(leaflet)
+library(sf)
+library(magrittr)
+library(dplyr)
+```
+
+Load Data
+
+```{r loadingdata}
+approved_dbf <- foreign::read.dbf("~/git/rural_broadband/data/rus_broadband_servicearea/RD_BB_ApprovedSA.dbf")
+
+bip_awardees <- readxl::read_excel("~/git/rural_broadband/data/rus_telecom_program/BIP_R1-R2AwardeeMaster_10-29-10_updNetObl_7-3-19.xlsx", 
+                                   sheet = "Infrastructure", 
+                                   col_types = c("text", "text", "text", "text", "text", "text", "text", "date", 
+                                                 "text", "text", "text", "text", "text", "text", "text", "text", 
+                                                 "text", "text", "text", "text", "text", "text", "text", "text", 
+                                                 "text", "numeric", "numeric", "numeric", "numeric", "numeric", 
+                                                 "text", "numeric", "numeric", "numeric", "text", "text", "text", 
+                                                 "text", "text", "numeric", "numeric", "numeric", "numeric", 
+                                                 "numeric", "numeric", "numeric", "text"))
+```
+
+RUS Shapefile columns
+
+took 2 rows (out of 8) from DC1101 application in VA 
+
+```{r}
+approved_dbf %>% filter(RUS_ID == "DC1101") %>% head(2) %>% knitr::kable()
+
+approved_dbf %>% filter(RUS_ID == "DC1101") %>% head(2) 
+```
+
+RUS Awardees columns
+
+```{r}
+bip_awardees2 <- bip_awardees %>% filter(`RUS Award No.` == "DC1101")
+colnames(bip_awardees2) <- stringr::str_remove_all(colnames(bip_awardees), "[:space:]|[:punct:]") 
+bip_awardees2 %>% knitr::kable()
+
+
+```
+
+Things that look in common: 
+
+RUS Shapefile | RUS Awardee                |Match notes
+--------------|----------------------------|-------------
+RUS_ID        | RUS Award No.              | exact match
+PUBLISHEDD    | Obligation Date            | lag ? 
+SERVICETYP    | Technology Type (7 fields) | fuzzy match
+
+
+Assumptions
+
+RUS Shapefile: 
+ 
+* STATUS/APPSTATUSS - assuming everything in awardee file is approved
+* PROGRAMTYP - see below but assuming that LM and MM programs in awardees are BIP
+
+## Thinking about Joins
+
+#### Map Reference Number
+
+Looking at Map Reference Number (Awardees) and Reference Number (Shape files)
+
+Virginia applications in shapefiles do not have any Reference Numbers
+
+```{r}
+VA_RUSID <- c("DC1101", "NC1104", "VA1112", "WI1117")
+bip_awardees %>% filter(`RUS Award No.` %in% VA_RUSID) %>% select(`Map Reference Number`)
+approved_dbf %>% filter(RUS_ID %in% VA_RUSID)  %>% select(REFNUMBER) %>% distinct()
+```
+
+Are there any filled in Reference Numbers? (Shapefile)
+
+Are any of those in the Map Reference Numbers (Awardees)
+(1 is - MO1104 by Ralls County Electric Cooperative in Missouri)
+
+```{r}
+shapefile_refnumbers <- approved_dbf %>% filter(!is.na(REFNUMBER)) 
+bip_awardees %>% filter(`Map Reference Number` %in% shapefile_refnumbers$REFNUMBER) %>% select(1:5) %>% knitr::kable()
+```
+
+```{r}
+bip_awardees %>% inner_join(shapefile_refnumbers, by = c("Map Reference Number" = "REFNUMBER")) %>% select(1:5) %>% knitr::kable()
+```
+
+#### RUS ID
+
+Collapsed Merge
+
+```{r}
+collapsedshape <- approved_dbf %>% select(RUS_ID, COMPANY, PROGRAMTYP, PROGRAMSER, REFNUMBER) %>% distinct() # goes from 1557 to 320
+collapsed_awardees <- bip_awardees %>% select(`RUS Award No.`, `Recipient Name`, `Project Type (Simplified)`, `Map Reference Number`) %>% distinct() # goes from 301 to 299
+
+collapsed_merge <- inner_join(collapsedshape, collapsed_awardees, by = c("RUS_ID" = "RUS Award No."))
+```
+
+X by Company - seems to match across sets
+
+```{r}
+collapsed_merge %>% select(COMPANY, `Recipient Name`) %>% head(15) %>% knitr::kable()
+```
+
+X by Program - not matching!
+
+This explains discrepancy - what I received, the program service 
+sometimes specifies 'middle mile' or 'last mile' and I wasn't sure if these were technically BIP, but they appear in the BIP awardee file
+```{r}
+collapsed_merge %>% select(PROGRAMTYP, PROGRAMSER, `Project Type (Simplified)`) %>% distinct() %>% knitr::kable()
+```
+
+How many missed?
+
+```{r}
+merge_progcombination_count <- collapsed_merge %>% group_by(RUS_ID, PROGRAMTYP, PROGRAMSER, `Project Type (Simplified)`) %>% summarise(rows = n()) %>% select(-rows) %>% group_by(PROGRAMTYP, PROGRAMSER, `Project Type (Simplified)`) %>% summarise(RUSID_count = n())
+
+split(merge_progcombination_count, merge_progcombination_count$`Project Type (Simplified)`)
+```
+
+
+X by Map Reference Number - nothing to match
+
+only 4 Ref numbers on shape file at all and only 1 of these that carries over to Map Reference Number 
+
+```{r}
+collapsed_merge %>% select(REFNUMBER, `Map Reference Number`) %>% distinct() %>% filter(!is.na(REFNUMBER)) %>% knitr::kable()
+```
+
+
+
+
+
+
