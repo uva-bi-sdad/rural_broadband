@@ -9,7 +9,11 @@ fcc_processed_25 <- read.csv("data/working/fcc_processed_25.csv")
 fcctract25 <- read.csv('~/git/dspg19broadband/data/working/fcc_processed_tract_25.csv')
 approved_dbf <- foreign::read.dbf("~/git/rural_broadband/data/rus_broadband_servicearea/RD_BB_ApprovedSA.dbf")
 
+
+
 ## "B19001"
+
+View(approved_dbf)
 
 
 # YOU have to do three things
