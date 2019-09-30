@@ -1,0 +1,216 @@
+---
+title: "Plots - Meeting Sept 25"
+output: html_document
+header-includes:
+  - \usepackage{color}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE )
+library(leaflet)
+library(sf)
+library(magrittr)
+library(dplyr)
+```
+
+
+```{r}
+bip_approved_join <- readRDS("~/git/rural_broadband/data/working/BIP_working/BIP_Approved.RDS") 
+bip_tract_786kb <- readRDS("~/git/rural_broadband/data/working/BIP_working/bip_tract_786kb.RDS")
+
+bip_approved_join <- bip_approved_join %>% st_transform(st_crs(bip_tract_786kb))
+
+va_10_tracts <- readRDS("~/git/rural_broadband/data/working/Census Shapefiles/virginia2010censustracts.RDS") %>% st_as_sf()
+fcc_10_tracts <- read.csv("~/git/rural_broadband/data/working/FCC_working/fcc2010tract.csv")
+va_10_tracts$GEOID10 <- as.numeric(va_10_tracts$GEOID10)
+virginia_fcc_coverage <- va_10_tracts %>% left_join(fcc_10_tracts, by = c("GEOID10" = "TRACTID"))
+```
+
+
+### Broadband Initiatives Program
+
+RUS Shapefiles:
+
+* Status - Approved
+* Application Status - Approved
+* Program Type - contains string "BIP" (includes two programs under BIP: Middle Mile & Last Mile)
+* Published - year is 2010
+
+#### National Map of ALL BIP Applications
+
+This shows `r nrow(bip_approved_join)` shapes corresponding to `r length(unique(bip_approved_join$RUS_ID))` applications. Note that shapes cross not only tract and county lines but also state lines. 
+
+```{r}
+usa_bip_plot <- leaflet() %>% addTiles() %>% addPolygons(data = bip_approved_join, label = bip_approved_join$COMPANY, color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.2,
+    fillColor = ~leaflet::colorFactor("YlOrRd", COMPANY)(COMPANY),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE))
+
+usa_bip_plot
+```
+
+Below are the 4 companies who submitted applications that include Virginia territory. 
+
+```{r}
+knitr::kable(tibble("BIP Application" = unique(bip_tract_786kb$RUS_ID), "Company" = unique(bip_tract_786kb$COMPANY)))
+```
+
+Note that shapes cross not only tract and county lines but also state lines. When we look at the 4 BIP applications that include Virginia land, all 4 of them cross state lines. 
+
+``` {r}
+thing <- bip_approved_join %>% 
+  filter(RUS_ID %in% unique(bip_tract_786kb$RUS_ID)) %>% 
+  group_by(RUS_ID, STUSPS) %>% 
+  summarise(n = n()) %>% select(-n)
+
+st_geometry(thing) <- NULL
+
+knitr::kable(thing)
+```
+
+
+```{r}
+usa_bip_plot %>%
+  addRectangles(
+    lng1=-84.376956, lat1=39.866334,
+    lng2=-74.374689, lat2=36.313509,
+    fillColor = "transparent"
+  ) %>% setView(-78.326404, 37.386108, zoom = 6)
+```
+
+#### Virginia Map of BIP Applications 
+
+This map shows only the portion of BIP application shapes that are contained by Virginia borders.
+
+```{r gen_baseplot}
+virginia786 <- leaflet() %>% addTiles() %>% 
+  addPolygons(data = bip_tract_786kb, label = bip_tract_786kb$COMPANY, color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    fillColor = ~leaflet::colorNumeric("YlOrRd", available786kb)(available786kb),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE))
+
+virginia786
+```
+
+```{r prepping_plots}
+virginia_fcc_coverage$available786kb <- as.integer(100*(virginia_fcc_coverage$available786kb))
+
+available_palette <- colorNumeric(
+  palette = "YlOrRd",
+  domain = virginia_fcc_coverage$available786kb, n = 5
+)
+
+virginia_availabilityplot  <- leaflet() %>% addTiles() %>%
+  addPolygons(data = virginia_fcc_coverage, label = virginia_fcc_coverage$available786kb, color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    fillColor = ~leaflet::colorNumeric("YlOrRd", available786kb)(available786kb),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE)) %>%
+  addLegend("bottomright", pal = available_palette, values = virginia_fcc_coverage$available786kb,
+    title = "Available 786 kbps",
+    labFormat = labelFormat(suffix = "%"),
+    opacity = 1
+  ) %>% 
+  addPolygons(data = bip_tract_786kb, color = "#FFFFFF", weight = 1, opacity = 1, fillOpacity = 0)
+
+urbanized_areas_VA <- readRDS("~/git/rural_broadband/data/working/urbanized_areas_VA_spjosh.RDS") %>% st_as_sf()
+places_over20k <- readRDS("~/git/rural_broadband/data/working/placesover20k_VA_spjosh.RDS") %>% st_as_sf()
+
+```
+
+#### BIP Eligibility 
+
+Criteria: 
+
+* Rurality – 75% of proposed area must be rural (not remote) 
+    + excludes cities, towns, incorporated areas with <20K population
+    + excludes urbanized areas contiguous with 50K places
+    + data sourced from 2010 decennial census, 2010 urbanized areas, 2010 places
+* Service Requirements – 75% of area is without sufficient access (*flexibility?*)
+    + data sourced from 2010 FCC
+* Speed – 768 kbps downstream/200 kbps upstream (*flexibility?*)
+    + data sourced from 2010 FCC
+
+Eligibility Sources: 
+
+* [Summary](https://myuva-my.sharepoint.com/:w:/r/personal/ads7fg_virginia_edu/_layouts/15/Doc.aspx?sourcedoc=%7BAD2AE291-0DD8-481B-987A-34E3E66DBBCF%7D&file=BIP%20Eligibility.docx&action=default&mobileredirect=true) 
+* [2009](https://www.sbc.senate.gov/public/_cache/files/f/0/f0fc95ef-18ef-4f1b-a1cc-0cab31394b1c/11824FA937892AEF65A916A2803681F3.bip-grant-guide.pdf) 
+* [2010](https://www.sbc.senate.gov/public/_cache/files/9/a/9a25de47-c64e-42a5-b78d-74112a7aebc2/DB4D3BA6394B3D77577B991C32AF1C85.bip-grant-guide-round-2-la.pdf)
+
+Eligibility Plots: 
+
+ * Red/Yellow - Broadband availability from FCC per census tract at 786 kbps downstream speed. 
+ * Blue - Census population data about rurality.
+ * White - BIP application regions. 
+
+```{r}
+ virginia_availabilityplot %>%
+   addPolygons(data = urbanized_areas_VA, color = "#4eecf5", weight = 1, opacity = 1, fillOpacity = .1) %>%
+   addPolygons(data = places_over20k, color = "#4eecf5", weight = 1, opacity = 1, fillOpacity = .1)
+
+```
+
+Same plot with BB speed eligibility as binary - yes or no whether 25% available. 
+
+```{r}
+virginia_fcc_coverage <- virginia_fcc_coverage %>% mutate(eligible786 = ifelse(available786kb <26, "Eligible BB", "Ineligible BB"))
+
+available_palette <- colorFactor(
+  palette = "YlOrRd",
+  domain = virginia_fcc_coverage$eligible786
+)
+
+virginia_availabilityplot2  <- leaflet() %>% addTiles() %>%
+  addPolygons(data = virginia_fcc_coverage, label = virginia_fcc_coverage$eligible786, color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    fillColor = ~leaflet::colorFactor("YlOrRd", eligible786)(eligible786),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE)) %>%
+  addLegend("bottomright", pal = available_palette, values = virginia_fcc_coverage$eligible786,
+    title = "Available 786 kbps",
+    #labFormat = labelFormat(suffix = "%"),
+    opacity = 1
+  ) 
+
+virginia_availabilityplot3 <- virginia_availabilityplot2 %>% 
+  addPolygons(data = bip_tract_786kb, color = "#FFFFFF", weight = 4, opacity = 1, fillOpacity = 0) %>% 
+   addPolygons(data = urbanized_areas_VA, color = "#4eecf5", weight = 2, opacity = 1, fillOpacity = .1) %>%
+   addPolygons(data = places_over20k, color = "#4eecf5", weight = 2, opacity = 1, fillOpacity = .1)
+
+
+virginia_availabilityplot3 
+```
+
+
+```{r, eval = FALSE}
+virginia_availabilityplot3 %>%
+  addLegend("bottomleft", pal = , values = virginia_fcc_coverage$eligible786,
+    title = "Available 786 kbps",
+    #labFormat = labelFormat(suffix = "%"),
+    opacity = 1
+  ) 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

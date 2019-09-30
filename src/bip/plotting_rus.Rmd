@@ -1,0 +1,291 @@
+---
+title: "Plot RUS & FCC"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(sf, , quietly = T)
+library("rlang", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")
+library("dplyr", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")
+library("ggplot2", lib.loc="/usr/local/lib/R/site-library", quietly = T)
+library(rgdal, quietly = T)
+library(leaflet)
+library(stringr)
+
+
+bip_approved_join <- readRDS("~/git/rural_broadband/data/working/BIP_working/BIP_Approved.RDS")
+states <- readOGR(dsn="~/git/rural_broadband/data/census_geo_cb/",layer="cb_2017_us_state_20m")
+states <- sf::st_as_sf(states)
+
+state_VA <- states[states$NAME=="Virginia",]
+state_VA <- sf::st_as_sf(state_VA)
+
+```
+
+
+```{r }
+bip_approved_join <- bip_approved_join %>% st_transform(st_crs(states)) 
+va_approved_join <- bip_approved_join %>% filter(STUSPS  == "VA")
+
+```
+
+```{r}
+#Map of USA
+ggplot(data = bip_approved_join) + geom_sf(aes(fill = SHAPE_Area)) 
+#Map of Virginia located applications? 
+ggplot(data = va_approved_join) + geom_sf(aes(fill = COMPANY)) 
+```
+
+
+
+Note - 1 MD application appears because it has a tiny piece of land mass in Virginia
+
+
+```{r}
+
+virginia_bip_plot <- leaflet() %>%
+  addTiles %>%
+  addPolygons(data = va_approved1, label = va_approved1$COMPANY, color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    fillColor = ~leaflet::colorFactor("YlOrRd", COMPANY)(COMPANY),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE)) 
+
+usa_bip_plot <- leaflet() %>% addTiles() %>% addPolygons(data = bip_approved_join, label = bip_approved_join$COMPANY, color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    fillColor = ~leaflet::colorFactor("YlOrRd", COMPANY)(COMPANY),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE))
+```
+
+```{r}
+virginia_bip_plot
+```
+
+```{r}
+usa_bip_plot
+```
+
+
+
+```{r}
+RUSIDsbyStateName <- bip_approved_join %>% group_by(RUS_ID, STUSPS) %>% summarise(n = n()) %>% select(-n)
+st_geometry(RUSIDsbyStateName) <- NULL
+RUSIDsbyStateCount <- RUSIDsbyStateName %>% group_by(RUS_ID) %>% summarise(numstates = n())
+multstateRUSIDs <- RUSIDsbyStateCount %>% filter(numstates > 1) %>% select(RUS_ID)
+
+multstateRUSIDs <-  unique(multstateRUSIDs$RUS_ID)
+
+multstateRUSID_applications <- bip_approved_join %>% 
+  filter(RUS_ID %in% multstateRUSIDs) 
+
+multstateRUSID_applications #list of sf dataframes
+
+multstateintersections <- st_intersection(multstateRUSID_applications, states) 
+virginia <- multstateintersections %>% filter(STUSPS.1 == "VA")
+saveRDS(virginia, "~/git/rural_broadband/data/working/BIP_working/virginia_intersection.RDS")
+
+plot(virginia[9])
+
+virginia_bip_plot_intersect <- leaflet() %>%
+  addTiles() %>%
+  addPolygons(data = virginia, label = virginia$COMPANY, color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    fillColor = ~leaflet::colorFactor("YlOrRd", COMPANY)(COMPANY),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE)) 
+
+virginia_bip_plot_intersect
+```
+
+
+
+```{r}
+rm(multstateintersections, multstateRUSID_applications, RUSIDsbyStateCount, RUSIDsbyStateName, state_VA, test, va_approved, va_approved1, virginia_bip_plot, multstateRUSIDs)
+va_10_tracts <- readRDS("~/git/rural_broadband/data/working/Census Shapefiles/virginia2010censustracts.RDS") %>% st_as_sf()
+va_10_blocks <- readRDS("~/git/rural_broadband/data/working/Census Shapefiles/virginia2010censusblocks.RDS") %>% st_as_sf()
+virginia_bip_intersection <- readRDS("~/git/rural_broadband/data/working/BIP_working/virginia_intersection.RDS")
+
+intersection_to_weight <- function(sfdf_custom, sfdf_compare) {
+  sfdf_new <- sfdf_compare %>% 
+    sf::st_intersection(sfdf_custom) %>%
+    mutate(custom_shapearea = st_area(geometry))
+  matchme <- unique(sfdf_new$GEOID10)
+  matches <- sfdf_compare %>% filter(GEOID10 %in% matchme) %>% mutate(comp_shapearea = st_area(geometry)) %>% select(GEOID10, comp_shapearea)
+  st_geometry(matches) <- NULL
+  sfdf_new <- sfdf_new %>% left_join(matches, by = "GEOID10") %>% mutate(weight = custom_shapearea/comp_shapearea)
+  sfdf_new
+}
+
+va_bip_tract_weight <- intersection_to_weight(virginia_bip_intersection, va_10_tracts)
+va_bip_block_weight <- intersection_to_weight(virginia_bip_intersection, va_10_blocks)
+
+saveRDS(va_bip_tract_weight, "~/git/rural_broadband/data/working/BIP_working/va_bip_tract_weight.RDS")
+saveRDS(va_bip_block_weight, "~/git/rural_broadband/data/working/BIP_working/va_bip_block_weight.RDS")
+```
+
+```{r}
+va_bip_tract_weight <- readRDS("~/git/rural_broadband/data/working/BIP_working/va_bip_tract_weight.RDS")
+va_bip_block_weight <- readRDS("~/git/rural_broadband/data/working/BIP_working/va_bip_block_weight.RDS")
+
+dc1101_t<- va_bip_tract_weight %>% filter(RUS_ID == "DC1101")
+WI1117_t<- va_bip_tract_weight %>% filter(RUS_ID == "WI1117")
+NC1104_t<- va_bip_tract_weight %>% filter(RUS_ID == "NC1104")
+VA1112_t<- va_bip_tract_weight %>% filter(RUS_ID == "VA1112")
+
+dc1101_b <- va_bip_block_weight %>% filter(RUS_ID == "DC1101")
+WI1117_b <- va_bip_block_weight %>% filter(RUS_ID == "WI1117")
+NC1104_b <- va_bip_block_weight %>% filter(RUS_ID == "NC1104")
+VA1112_b <- va_bip_block_weight %>% filter(RUS_ID == "VA1112")
+
+# plot(dc1101_t[3])
+# plot(WI1117_t[3])
+# plot(NC1104_t[3])
+# plot(VA1112_t[3])
+# 
+# plot(dc1101_b[4])
+# plot(WI1117_b[4])
+# plot(NC1104_b[4])
+# plot(VA1112_b[4])
+```
+
+```{r}
+plot(va_bip_tract_weight[63])
+plot(dc1101_t[63])
+plot(WI1117_t[63])
+plot(NC1104_t[63])
+plot(VA1112_t[63])
+```
+
+```{r}
+plot(va_bip_block_weight[66])
+plot(dc1101_b[66])
+plot(WI1117_b[66])
+plot(NC1104_b[66])
+plot(VA1112_b[66])
+```
+
+
+```{r}
+va_bip_tract_weight <- readRDS("~/git/rural_broadband/data/working/BIP_working/va_bip_tract_weight.RDS")
+tracts_10_786kb <- read.csv("~/git/rural_broadband/data/working/FCC_working/fcc2010tract.csv")
+va_bip_tract_weight$GEOID10 <- as.numeric(va_bip_tract_weight$GEOID10)
+
+bip_tract_786kb <- va_bip_tract_weight %>% left_join(tracts_10_786kb, by = c("GEOID10" = "TRACTID"))
+
+plot(bip_tract_786kb[64])
+```
+
+
+```{r}
+va_bip_block_weight <- readRDS("~/git/rural_broadband/data/working/BIP_working/va_bip_block_weight.RDS")
+blocks_10_786kb <- readRDS("~/git/rural_broadband/data/working/FCC_working/blocks2010_with_786kb.RDS")
+
+colnames(va_bip_block_weight)
+colnames(blocks_10_786kb)
+
+bip_block_786kb <- va_bip_block_weight %>% left_join(blocks_10_786kb, by = "GEOID10")
+bip_block_786kb
+
+unique(bip_block_786kb$RUS_ID)
+
+```
+
+``` {r}
+dc1101_t<- bip_tract_786kb %>% filter(RUS_ID == "DC1101")
+WI1117_t<- bip_tract_786kb %>% filter(RUS_ID == "WI1117")
+NC1104_t<- bip_tract_786kb %>% filter(RUS_ID == "NC1104")
+VA1112_t<- bip_tract_786kb %>% filter(RUS_ID == "VA1112")
+
+dc1101_b <- bip_block_786kb %>% filter(RUS_ID == "DC1101")
+WI1117_b <- bip_block_786kb %>% filter(RUS_ID == "WI1117")
+NC1104_b <- bip_block_786kb %>% filter(RUS_ID == "NC1104")
+VA1112_b <- bip_block_786kb %>% filter(RUS_ID == "VA1112")
+```
+
+
+```{r}
+plot(bip_tract_786kb[64])
+plot(dc1101_t[64])
+plot(WI1117_t[64])
+plot(NC1104_t[64])
+plot(VA1112_t[64])
+#bip_tract_786kb[58:65]
+#bip_block_786kb[62:68]
+```
+
+
+
+```{r}
+plot(bip_block_786kb[68])
+plot(dc1101_b[68])
+plot(WI1117_b[68])
+plot(NC1104_b[68])
+plot(VA1112_b[68])
+```
+
+
+```{r}
+saveRDS(bip_tract_786kb, "~/git/rural_broadband/data/working/BIP_working/bip_tract_786kb.RDS")
+saveRDS(bip_block_786kb, "~/git/rural_broadband/data/working/BIP_working/bip_block_786kb.RDS")
+```
+
+figure out rest of virginia broadband? 
+```{r}
+va_10_tracts <- readRDS("~/git/rural_broadband/data/working/Census Shapefiles/virginia2010censustracts.RDS") %>% st_as_sf()
+va_10_blocks <- readRDS("~/git/rural_broadband/data/working/Census Shapefiles/virginia2010censusblocks.RDS") %>% st_as_sf()
+
+bip_tract_786kb <- readRDS("~/git/rural_broadband/data/working/BIP_working/bip_tract_786kb.RDS")
+bip_block_786kb <- readRDS("~/git/rural_broadband/data/working/BIP_working/bip_block_786kb.RDS")
+bip_tract_786kb
+```
+
+```{r}
+leaflet() %>% addTiles() %>% 
+  addPolygons(data = bip_tract_786kb, label = bip_tract_786kb$COMPANY, color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    fillColor = ~leaflet::colorNumeric("YlOrRd", available786kb)(available786kb),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE))
+```
+
+```{r}
+leaflet() %>% addTiles() %>% 
+  addPolygons(data = va_10_blocks)
+
+```
+
+
+```{r}
+# ACS variables
+acsvars <- c("B15003_001","B15003_002","B15003_003","B15003_004","B15003_005","B15003_006","B15003_007","B15003_008","B15003_009", # educational attainment for 25+, sum(cat2-cat18)/total
+             "B15003_010","B15003_011","B15003_012","B15003_013","B15003_014","B15003_015","B15003_016","B15003_017","B15003_018", # educational attainment for 25+, sum(cat2-cat18)/total
+             "B17020_001","B17020_002",                                                                                            # income under poverty level, cat2/total
+             "B01001_001","B01001_020","B01001_021","B01001_022","B01001_023","B01001_024","B01001_025",                           # 65+ population, male65+ plus female65+ / total
+             "B01001_044","B01001_045","B01001_046","B01001_047","B01001_048","B01001_049",                                        # 65+ population, male65+ plus female65+ / total
+             "B03003_001","B03003_003",                                                                                            # hispanic, hispanic/total
+             "B02001_001","B02001_003",                                                                                            # black, black/total
+             "B09019_002","B09019_003",                                                                                            # family households, in family households/in households
+             "B05002_001","B05002_013")                                                                                            # foreign born, foreign/total
+
+# Get tract-level variables from ACS 2012-2016 (5-year)
+acs_tract <- tidycensus::get_acs(geography = "tract", state = "51", variables = acsvars, year = 2016, survey = "acs5", cache_table = TRUE, output = "wide")
+acs_tract
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
