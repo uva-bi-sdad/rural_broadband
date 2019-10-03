@@ -136,6 +136,43 @@ collapsed_merge %>% select(REFNUMBER, `Map Reference Number`) %>% distinct() %>%
 ```
 
 
+```{r}
+approved_shapes <- approved_dbf %>% select(RUS_ID, SHAPE_Area) %>% distinct()
+bip_awards <- bip_awardees[,c(3,7,9)] %>% distinct()
+
+
+multrus_awardees <- bip_awardees %>% group_by(`RUS Award No.`) %>% summarise(n = n()) %>% filter(n > 1) %>% select(`RUS Award No.`)
+multrus_awardees <- unique(multrus_awardees$`RUS Award No.`)
+
+bip_awardees %>% filter(`RUS Award No.` %in% multrus_awardees) %>% arrange(`RUS Award No.`) %>% select(-`App ID`, -`NOFA Round`, -`Awardee ID`, -`BAIL ID`) 
+
+bip_awardees %>% filter(`RUS Award No.` %in% multrus_awardees) %>% arrange(`RUS Award No.`) %>% distinct()
+
+length(unique(bip_awardees$`Map Reference Number`))
+table(approved_dbf$REFNUMBER)
+
+length(setdiff(unique(approved_shapes$RUS_ID), unique(bip_awards$`RUS Award No.`)))
+length(union(unique(approved_shapes$RUS_ID), unique(bip_awards$`RUS Award No.`)))
+
+approved_shapes %>% select(RUS_ID) %>% distinct() %>% 
+  inner_join(bip_awards %>% select(`RUS Award No.`) %>% distinct(), by = c("RUS_ID" = "RUS Award No."))
+
+approved_shapes %>% select(RUS_ID) %>% distinct() %>% 
+  anti_join(bip_awards  %>% select(`RUS Award No.`) %>% distinct(), by = c("RUS_ID" = "RUS Award No."))
+
+52+229
+
+bip_awardees  %>% 
+  inner_join(approved_shapes, by = c("RUS Award No." = "RUS_ID")) %>% 
+  filter(stringr::str_detect(`States Served`, "VA") == TRUE)
+  filter(`RUS Award No.` %in% VA_RUSID)
+
+bip_awards %>% select(`RUS Award No.`) %>% distinct() %>% 
+  anti_join(approved_shapes %>% select(RUS_ID) %>% distinct(), by = c("RUS Award No." = "RUS_ID"))
+
+220 + 29
+
+```
 
 
 
