@@ -154,8 +154,10 @@ table(approved_dbf$REFNUMBER)
 length(setdiff(unique(approved_shapes$RUS_ID), unique(bip_awards$`RUS Award No.`)))
 length(union(unique(approved_shapes$RUS_ID), unique(bip_awards$`RUS Award No.`)))
 
-approved_shapes %>% select(RUS_ID) %>% distinct() %>% 
-  inner_join(bip_awards %>% select(`RUS Award No.`) %>% distinct(), by = c("RUS_ID" = "RUS Award No."))
+test <- approved_shp %>% select(RUS_ID) %>% distinct() %>% 
+  inner_join(bip_awardees , by = c("RUS_ID" = "RUS Award No.")) #%>% filter(`States Served` == "VA"|"RUS Award No." %in% VA_RUSID)
+
+test
 
 approved_shapes %>% select(RUS_ID) %>% distinct() %>% 
   anti_join(bip_awards  %>% select(`RUS Award No.`) %>% distinct(), by = c("RUS_ID" = "RUS Award No."))
@@ -165,7 +167,7 @@ approved_shapes %>% select(RUS_ID) %>% distinct() %>%
 bip_awardees  %>% 
   inner_join(approved_shapes, by = c("RUS Award No." = "RUS_ID")) %>% 
   filter(stringr::str_detect(`States Served`, "VA") == TRUE)
-  filter(`RUS Award No.` %in% VA_RUSID)
+
 
 bip_awards %>% select(`RUS Award No.`) %>% distinct() %>% 
   anti_join(approved_shapes %>% select(RUS_ID) %>% distinct(), by = c("RUS Award No." = "RUS_ID"))
@@ -174,6 +176,15 @@ bip_awards %>% select(`RUS Award No.`) %>% distinct() %>%
 
 ```
 
+```{r}
+approved_dbf %>% filter
+  inner_join(bip_awardees, by = c("RUS_ID" = "RUS Award No.")) %>% nrow()
+
+
+
+
+
+```
 
 
 
