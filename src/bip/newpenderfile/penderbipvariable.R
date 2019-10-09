@@ -40,7 +40,7 @@ deedtaxall <- readRDS("~/git/rural_broadband/data/Merged_Data_Smaller_States-Joh
 table(deedtaxall$bip) #7,262,049 FALSE 77,387 TRUE
 tibble(Column = c(, "Price", "Bedrooms"))
 
-summary(deedtaxall$)
+summary(deedtaxall)
 
 colnames(deedtaxall)
 colnames(deedtaxall)[stringr::str_detect(colnames(deedtaxall), "bath") == TRUE]
@@ -59,25 +59,26 @@ deedtax_VA_penderbipvariable <- deedtaxall %>%
          geometry)
 library(sf)
 #saveRDS(deedtax_VA_penderbipvariable, "~/git/rural_broadband/data/Merged_Data_Smaller_States-John_Pender_18-09-2019/deedtaxmergeall_va_bipvariable.RDS")
-rm(deedtaxall)
+
+deedtax_VA_penderbipvariable <- readRDS("~/git/rural_broadband/data/Merged_Data_Smaller_States-John_Pender_18-09-2019/deedtaxmergeall_va_bipvariable.RDS")
 
 summary(deedtax_VA_penderbipvariable) 
 
-biptrueva <- deedtax_VA_penderbipvariable %>% filter(bip == TRUE)
+bip_va_houses <- deedtax_VA_penderbipvariable %>% filter(bip == TRUE)
 plot(VAgeom$geometry)
-plot(biptrueva$geometry,add=TRUE,col="red")
-plot(biptrueva[5])
+plot(bipVA$geometry,add=TRUE,col="red")
 
-colnames(biptrueva)
-tibble("Column" = c("Sale Amount",),
-       "Min" = c(min(biptrueva$saleamount)),
-       "Max" = c(max(biptrueva$saleamount)),
-       "Mean" = c(mean(biptrueva$saleamount)),
-       "StDev" = c(sd(biptrueva$saleamount)))
 
-tibble("Column" = c("Metro 2013"),
-       "Values" = unique(biptrueva$metro2013),
-       "Max" = c(287, 8))
+# colnames(biptrueva)
+# tibble("Column" = c("Sale Amount",),
+#        "Min" = c(min(biptrueva$saleamount)),
+#        "Max" = c(max(biptrueva$saleamount)),
+#        "Mean" = c(mean(biptrueva$saleamount)),
+#        "StDev" = c(sd(biptrueva$saleamount)))
+# 
+# tibble("Column" = c("Metro 2013"),
+#        "Values" = unique(biptrueva$metro2013),
+#        "Max" = c(287, 8))
        
        
 table(biptrueva$assessedyear)
@@ -85,20 +86,28 @@ table(biptrueva$assessedyear)
 plot(VAgeom$geometry)
 plot(virginia_bip_sites, add=TRUE, col = "red")
 
-virginia_bip_sites <- bip_approved_join %>% filter(STUSPS == "VA")
-isochrome5 <- sf::st_buffer(virginia_bip_sites, dist = 5)
-isochrome15 <- sf::st_buffer(virginia_bip_sites, dist = 15)
-isochrome50 <- sf::st_buffer(virginia_bip_sites, dist = 50)
+virginia_bip_sites <- bip_shape %>% filter(STUSPS == "VA")
 
-isochrome5 <- sf::st_buffer(virginia_bip_sites, dist = 5)
-isochrome15 <- sf::st_buffer(virginia_bip_sites, dist = 15)
-isochrome50 <- sf::st_buffer(virginia_bip_sites, dist = 50)
+virginia_bip_sites2 <- virginia_bip_sites %>% st_transform(st_crs("+init=epsg:3857"))
+plot(st_buffer(virginia_bip_sites2, dist = 16.09, endCapStyle = "ROUND")[1]) #10 miles
+plot(st_buffer(virginia_bip_sites2, dist = 40.23, endCapStyle = "ROUND")[1]) #25 miles
+plot(st_buffer(virginia_bip_sites2, dist = 80.46, endCapStyle = "ROUND")[1]) #50 miles
+plot(st_buffer(virginia_bip_sites2, dist = 160.93, endCapStyle = "ROUND")[1]) #100 miles
+plot(st_buffer(virginia_bip_sites2, dist = 1609.34, endCapStyle = "ROUND")[1]) #1000 miles
 
-plot(st_buffer(virginia_bip_sites, dist = .0001, endCapStyle = "ROUND")[1])
-plot(st_buffer(st_centroid(virginia_bip_sites), dist = 3, endCapStyle = "ROUND")[1])
-plot(virginia_bip_sites[1])
+buffer_10mi <- st_buffer(virginia_bip_sites2, dist = 16.09, endCapStyle = "ROUND") #10 miles
+buffer_25mi <- st_buffer(virginia_bip_sites2, dist = 40.23, endCapStyle = "ROUND") #25 miles
+buffer_50mi <- st_buffer(virginia_bip_sites2, dist = 80.46, endCapStyle = "ROUND") #50 miles
+buffer_100mi <- st_buffer(virginia_bip_sites2, dist = 160.93, endCapStyle = "ROUND") #100 miles
+buffer_1000mi <- st_buffer(virginia_bip_sites2, dist = 1609.34, endCapStyle = "ROUND") #1000 miles
 
+##########
+##########
 
+library(rgdal)
+espg <- make_EPSG()
+espg %>%
+  filter(stringr::str_detect(code, '3857'))
 ##########
 library(units)
 library(tidyverse)
@@ -107,7 +116,7 @@ library(mapview)
 library(units)
 
 # define nautical miles (as per ICAO notation)
-NM <- make_unit("NM")
+NM <- as_units("NM")
 install_conversion_constant("NM", "km", 1.852)
 
 # DUB/EIDW location, see
