@@ -92,14 +92,15 @@ bipVA <- bip_approved_join[lengths(test)>0,]
 bipVA
 
 virginia_bip_sites <- bipVA %>% filter(STUSPS == "VA")
-virginia_bip_sites2 <- bipVA %>% st_transform(st_crs("+init=epsg:3857"))
 
-buffer_5mi <- st_buffer(virginia_bip_sites, dist = 8046.72, endCapStyle = "ROUND") #50 miles
+#buffer_1mi <- st_buffer(virginia_bip_sites, dist = 1609.34, endCapStyle = "ROUND") #1 mile
+buffer_5mi <- st_buffer(virginia_bip_sites, dist = 8046.72, endCapStyle = "ROUND") #5 miles
 buffer_10mi <- st_buffer(virginia_bip_sites, dist = 16093.4, endCapStyle = "ROUND") #10 miles
 buffer_25mi <- st_buffer(virginia_bip_sites, dist = 40233.6, endCapStyle = "ROUND") #25 miles
 buffer_50mi <- st_buffer(virginia_bip_sites, dist = 80467.2, endCapStyle = "ROUND") #50 miles
 
 plot(VAgeom$geometry)
+#plot(buffer_1mi$geometry, add = TRUE)
 plot(buffer_5mi$geometry, add = TRUE)
 plot(buffer_10mi$geometry, add = TRUE)
 plot(buffer_25mi$geometry, add = TRUE)
@@ -126,7 +127,22 @@ table(deedtax_VA_penderbipvariable$bip_10mi)
 table(deedtax_VA_penderbipvariable$bip_25mi)
 table(deedtax_VA_penderbipvariable$bip_50mi)
 
+saveRDS(deedtax_VA_penderbipvariable, "~/git/rural_broadband/data/Merged_Data_Smaller_States-John_Pender_18-09-2019/deedtaxmergeall_va_bipvariables.RDS")
 
+deedtax_VA_penderbipvariable <- deedtax_VA_penderbipvariable %>% 
+  mutate(bip_c = paste(stringr::str_extract(bip, "^.{1}"),
+                       stringr::str_extract(bip_5mi, "^.{1}"),
+                       stringr::str_extract(bip_10mi, "^.{1}"),
+                       stringr::str_extract(bip_25mi, "^.{1}"),
+                       stringr::str_extract(bip_50mi, "^.{1}")),
+         bip_n = stringr::str_count(bip_c, "T"), 
+         bip_distance = recode(bip_n, `1` = "50 miles", `2` = "25 miles", `3` = "10 miles", `4` = "5 miles", `5` = "BIP region", `0` = "Non-BIP region"))
 
+va_near_bip_homes <- deedtax_VA_penderbipvariable %>% filter(bip_distance !="Non-BIP region") 
 
-
+plot(VAgeom$geometry)
+plot(buffer_5mi$geometry, add = TRUE)
+plot(buffer_10mi$geometry, add = TRUE)
+plot(buffer_25mi$geometry, add = TRUE)
+plot(buffer_50mi$geometry, add = TRUE)
+plot(va_near_bip_homes$geometry, add = TRUE, col = "red")
