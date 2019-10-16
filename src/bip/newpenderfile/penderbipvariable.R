@@ -148,3 +148,29 @@ plot(buffer_50mi$geometry, add = TRUE)
 plot(va_near_bip_homes$geometry, add = TRUE, col = "red")
 st_geometry(deedtax_VA_penderbipvariable_nogeom) <- NULL
 haven::write_dta(deedtax_VA_penderbipvariable_nogeom, "~/git/rural_broadband/data/Merged_Data_Smaller_States-John_Pender_18-09-2019/deed_tax_merge_va_bipvariables.dta")
+
+
+
+deedtax_VA_penderbipvariable <- readRDS("~/git/rural_broadband/data/Merged_Data_Smaller_States-John_Pender_18-09-2019/deedtaxmergeall_va_bipvariables.RDS")
+
+va_bip_homes <- deedtax_VA_penderbipvariable %>% filter(bip_distance == "BIP region") 
+va_5mi_homes <- deedtax_VA_penderbipvariable %>% filter(bip_distance == "5 miles") 
+va_10mi_homes <- deedtax_VA_penderbipvariable %>% filter(bip_distance == "10 miles") 
+va_25mi_homes <- deedtax_VA_penderbipvariable %>% filter(bip_distance == "25 miles") 
+va_50mi_homes <- deedtax_VA_penderbipvariable %>% filter(bip_distance == "50 mile") 
+va_notbip_homes <- deedtax_VA_penderbipvariable %>% filter(bip_distance == "Non-BIP region") 
+table(deedtax_VA_penderbipvariable$bip_distance)
+
+
+va_bip_homes %>% 
+  select(apnparcelnumberunformatted, #formattedapn, #property identifier
+         #transactiontype, pricatcode, #transaction identifier? 
+         city, state, # censustract, zipcode, # geography
+         year, taxyear, assessedyear, # time
+         metro2013, #rurality
+         saleamount, assdtotalvalue, mkttotalvalue, # totalvaluecalculated, totalvaluecalculatedind, # property values
+         acres, landsquarefootage, buildingsquarefeet, livingsquarefeet, grosssquarefeet, # universalbuildingsquarefeet, # area
+         yearbuilt, age,
+         bedrooms,
+         totalbathscalculated, 
+         bip_distance) %>% summary()

@@ -169,7 +169,7 @@ in_notbip_homes <- deedtax_IN_penderbipvariable %>% filter(bip_distance == "Non-
 table(deedtax_IN_penderbipvariable$bip_distance)
 
 
-in_1mi_homes %>% 
+in_notbip_homes %>% 
   select(apnparcelnumberunformatted, formattedapn, #property identifier
          transactiontype, pricatcode, #transaction identifier? 
          city, state, censustract, zipcode, # geography
