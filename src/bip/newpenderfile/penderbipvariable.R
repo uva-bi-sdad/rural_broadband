@@ -127,7 +127,7 @@ table(deedtax_VA_penderbipvariable$bip_10mi)
 table(deedtax_VA_penderbipvariable$bip_25mi)
 table(deedtax_VA_penderbipvariable$bip_50mi)
 
-saveRDS(deedtax_VA_penderbipvariable, "~/git/rural_broadband/data/Merged_Data_Smaller_States-John_Pender_18-09-2019/deedtaxmergeall_va_bipvariables.RDS")
+#saveRDS(deedtax_VA_penderbipvariable, "~/git/rural_broadband/data/Merged_Data_Smaller_States-John_Pender_18-09-2019/deedtaxmergeall_va_bipvariables.RDS")
 
 deedtax_VA_penderbipvariable <- deedtax_VA_penderbipvariable %>% 
   mutate(bip_c = paste(stringr::str_extract(bip, "^.{1}"),
@@ -146,3 +146,5 @@ plot(buffer_10mi$geometry, add = TRUE)
 plot(buffer_25mi$geometry, add = TRUE)
 plot(buffer_50mi$geometry, add = TRUE)
 plot(va_near_bip_homes$geometry, add = TRUE, col = "red")
+st_geometry(deedtax_VA_penderbipvariable_nogeom) <- NULL
+haven::write_dta(deedtax_VA_penderbipvariable_nogeom, "~/git/rural_broadband/data/Merged_Data_Smaller_States-John_Pender_18-09-2019/deed_tax_merge_va_bipvariables.dta")
