@@ -3,17 +3,14 @@ library(sf)
 deedtax_IN_penderbipvariables <- readRDS("~/git/rural_broadband/data/Merged_Data_Smaller_States-John_Pender_18-09-2019/deedtaxmergeall_in_bipvariables.RDS")
 colnames(deedtax_IN_penderbipvariables)[stringr::str_detect(colnames(deedtax_IN_penderbipvariables), "fips") == TRUE]
 head(deedtax_IN_penderbipvariables$fipscode)
-lakecty <- block_groups(18, county = "Lake", cb = TRUE, year = 2010)
-portercty <- block_groups(18, county = "Porter", cb = TRUE, year = 2010)
-newtoncty <- block_groups(18, county = "Newton", cb = TRUE, year = 2010)
+lakecty <- block_groups(18, county = "Lake", cb = TRUE, year = 2010) %>% st_as_sf()
+portercty <- block_groups(18, county = "Porter", cb = TRUE, year = 2010) %>% st_as_sf()
+newtoncty <- block_groups(18, county = "Newton", cb = TRUE, year = 2010) %>% st_as_sf()
 
 plot(lakecty)
 plot(portercty, add = TRUE)
 plot(newtoncty, add = TRUE)
 
-lakecty <- lakecty %>% st_as_sf()
-portercty <- portercty %>% st_as_sf()
-newtoncty <- newtoncty %>% st_as_sf()
 
 indianaNW <- rbind(lakecty, portercty, newtoncty)
 plot(indianaNW[3])
@@ -140,3 +137,43 @@ timecombosindiana %>%
   arrange(assessedyear, year)
 st_geometry(timecombosindiana)  <- NULL
 timecombosindiana <- as.data.frame(timecombosindiana)
+
+########
+deedtax_IN_bipvarsandcensus <- readRDS("~/git/rural_broadband/data/Merged_Data_Smaller_States-John_Pender_18-09-2019/deedtax_IN_bipvarsandcensus.RDS")
+deedtax_IN3CT_bipvars_10bgps <- deedtax_IN_bipvarsandcensus %>% filter(COUNTY %in% c("089", "127", "111"))
+rm(deedtax_IN_bipvarsandcensus)
+
+lakecty <- tigris::blocks(18, county = "Lake", year = 2000) %>% st_as_sf()
+portercty <- tigris::blocks(18, county = "Porter", year = 2000) %>% st_as_sf()
+newtoncty <- tigris::blocks(18, county = "Newton", year = 2000) %>% st_as_sf()
+
+indianaNW_2000blocks <- rbind(lakecty, portercty, newtoncty)
+
+deedtax_IN3CT_bipvars_10bgps_00blks <- deedtax_IN3CT_bipvars_10bgps %>% st_join(indianaNW_2000blocks)
+head(deedtax_IN3CT_bipvars_10bgps_00blks, 1)
+
+fcc2010_providers_by_block <- readr::read_csv("git/rural_broadband/data/fcc2010_providers_by_block.csv")
+colnames(fcc2010_providers_by_block)
+head(fcc2010_providers_by_block, 1)
+
+deedtax_IN3CT_bipvars_10bgps_00blks_fcc <- deedtax_IN3CT_bipvars_10bgps_00blks  %>% left_join(fcc2010_providers_by_block, by = c("BLKIDFP00" = "GEOID00"))
+
+table(deedtax_IN3CT_bipvars_10bgps_00blks_fcc$providers_768kbps)
+sum(dataplumbr::var.is_blank(deedtax_IN3CT_bipvars_10bgps_00blks_fcc$providers_768kbps))
+table(deedtax_IN3CT_bipvars_10bgps_00blks_fcc$providers_3mpbs)
+sum(dataplumbr::var.is_blank(deedtax_IN3CT_bipvars_10bgps_00blks_fcc$providers_3mpbs))
+table(deedtax_IN3CT_bipvars_10bgps_00blks_fcc$providers_10mpbs)
+sum(dataplumbr::var.is_blank(deedtax_IN3CT_bipvars_10bgps_00blks_fcc$providers_10mpbs))
+table(deedtax_IN3CT_bipvars_10bgps_00blks_fcc$providers_25mpbs)
+sum(dataplumbr::var.is_blank(deedtax_IN3CT_bipvars_10bgps_00blks_fcc$providers_25mpbs))
+
+deedtax_IN3CT_bipvars_10bgps_00blks_fcc_nogeom <- deedtax_IN3CT_bipvars_10bgps_00blks_fcc
+st_geometry(deedtax_IN3CT_bipvars_10bgps_00blks_fcc_nogeom) <- NULL
+colnames(deedtax_IN3CT_bipvars_10bgps_00blks_fcc_nogeom)[colnames(deedtax_IN3CT_bipvars_10bgps_00blks_fcc_nogeom)=="COUNTYFP.x"] <- "COUNTYFP10"
+colnames(deedtax_IN3CT_bipvars_10bgps_00blks_fcc_nogeom)[colnames(deedtax_IN3CT_bipvars_10bgps_00blks_fcc_nogeom)=="STATEFP.x"] <- "STATEFP10"
+colnames(deedtax_IN3CT_bipvars_10bgps_00blks_fcc_nogeom)[colnames(deedtax_IN3CT_bipvars_10bgps_00blks_fcc_nogeom)=="COUNTYFP.y"] <- "COUNTYFP00"
+colnames(deedtax_IN3CT_bipvars_10bgps_00blks_fcc_nogeom)[colnames(deedtax_IN3CT_bipvars_10bgps_00blks_fcc_nogeom)=="STATEFP.y"] <- "STATEFP00"
+colnames(deedtax_IN3CT_bipvars_10bgps_00blks_fcc_nogeom)
+haven::write_dta(deedtax_IN3CT_bipvars_10bgps_00blks_fcc_nogeom, "~/git/rural_broadband/data/Merged_Data_Smaller_States-John_Pender_18-09-2019/deedtax_IN3CT_bipvarsandcensusandfcc.dta")
+
+
