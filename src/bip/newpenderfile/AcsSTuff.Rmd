@@ -1,0 +1,70 @@
+---
+title: "ACSthing"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r cars}
+#bip_approved_join <- readRDS("~/git/rural_broadband/data/working/BIP_working/BIP_Approved.RDS") 
+approved_shp <- read_sf("~/git/rural_broadband/data/rus_broadband_servicearea/RD_BB_ApprovedSA.shp")
+bip_awardees <- readxl::read_excel("~/git/rural_broadband/data/rus_telecom_program/BIP_R1-R2AwardeeMaster_10-29-10_updNetObl_7-3-19.xlsx", 
+                                   sheet = "Infrastructure", 
+                                   col_types = c("text", "text", "text", "text", "text", "text", "text", "date", 
+                                                 "text", "text", "text", "text", "text", "text", "text", "text", 
+                                                 "text", "text", "text", "text", "text", "text", "text", "text", 
+                                                 "text", "numeric", "numeric", "numeric", "numeric", "numeric", 
+                                                 "text", "numeric", "numeric", "numeric", "text", "text", "text", 
+                                                 "text", "text", "numeric", "numeric", "numeric", "numeric", 
+                                                 "numeric", "numeric", "numeric", "text"))
+
+urbanized_areas_VA <- readRDS("~/git/rural_broadband/data/working/urbanized_areas_VA_spjosh.RDS")
+places_over20k <- readRDS("~/git/rural_broadband/data/working/placesover20k_VA_spjosh.RDS")
+
+urbanized_areas_VA <- st_as_sf(urbanized_areas_VA)
+places_over20k <- st_as_sf(places_over20k)
+
+states <- rgdal::readOGR(dsn="~/git/dspg19broadband/data/original/cb_2017_us_state_20m",layer="cb_2017_us_state_20m")
+states <- spTransform(states, CRS('+proj=longlat +ellps=WGS84'))
+state_VA <- states[states@data$NAME=="Virginia",]
+rm(states)
+deed_tax_merge_top1000 <- readRDS("~/git/rural_broadband/data/Merged_Data_Smaller_States-John_Pender_18-09-2019/deed_tax_merge_top1000.RDS")
+```
+
+
+
+```{r pressure}
+bipareas <- approved_shp %>% select(RUS_ID) %>% distinct() %>% 
+  inner_join(bip_awardees , by = c("RUS_ID" = "RUS Award No.")) 
+
+VA_5_bipareas <- bipareas %>%  filter(stringr::str_detect(`States Served`, "VA") ==TRUE|stringr::str_detect(RUS_ID, "DC1101|NC1104|VA1112|WI1117")==TRUE)
+
+VA_5_bipareas #RECEIVED BIP
+
+va_bip_ineligible <- st_union(urbanized_areas_VA, places_over20k)
+
+va_bip_ineligible #NOT ELIGIBLE FOR BIP
+
+plot(state_VA)
+plot(VA_5_bipareas[1])
+plot(va_bip_ineligible[3])
+
+state_VA
+
+```
+
+
+Table of Virginia properties  w/5 columns
+ - by year
+ - housing characteristics
+ - median value
+ - merged deeds and taxes (but all property types)
+
+```{r}
+colnames(deedtaxmergeall) 
+ va_corelogic_usda <- deedtaxmergeall %>% filter(state == "VA")
+```
+

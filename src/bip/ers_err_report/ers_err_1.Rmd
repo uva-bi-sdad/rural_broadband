@@ -1,0 +1,92 @@
+---
+title: "Economic Research Report - BIP Regions"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE)
+```
+
+```{r loaddata}
+approved_dbf <- foreign::read.dbf("~/git/rural_broadband/data/rus_broadband_servicearea/RD_BB_ApprovedSA.dbf")
+```
+
+
+***Abstract:*** 
+
+The Economic Research Service (ERS) is an ***(independent?)*** statistical agency of the United States Department of Agriculture (USDA) primarily concerned with the landscape of the agricultural economy. Chief among its responsibilities is to ensure the well-being of rural economies by fostering economic development through a number of policy interventions. One such intervention took place in 2008, wherein the American Recovery and Restoration Act funded investments to furnish or expand broadband access and availability in rural areas. The goal of this paper is to describe a method by which local impacts of such investments can be measured via spatial mapping tools. The methods presented here allow for analysis of 
+
+* add sentence about methods
+* add sentence about results
+* add 'what we learned' sentence
+
+***Executive Summary*** TBD
+
+***Outline***
+
+I.  Introduction  - GOAL - end of MARCH 
+    A.  Background on USDA > RUS
+    B.  Background on Broadband Infrastructure Program
+        1. Definition of broadband
+    C.  Motivation & Approach (Methods overview)
+    D.  CASE STUDY: INDIANA
+II.  Data Sources *including EDA for each dataset*  - GOAL - end of MARCH 
+    A.  Spatial data
+        1.  Census tracts/blocks
+        2.  Custom shapes
+    B.  CoreLogic
+        1.  Tax Assessments
+        2.  Deeds  
+    C.  FCC ***(does this bear mentioning?)***
+    D.  BIP shape data
+III.  Methods - GOAL - end of FEBRUARY
+    A.  Data Preparation
+    B.  Spatial Manipulations
+    C.  Modeling Techniques
+    D.  Paralellization - depending
+IV.  Results - GOAL - end of FEBRUARY
+    A.  Descriptive results only? 
+    B   Also modeling results? 
+V.  Discussion - GOAL - end of MARCH 
+    A.  Conclusions 
+    B.  Challenges/Limitations
+    C.  Future Opportunities
+VI.  Bibliography
+VII.  Data Citations
+VIII.  Appendix
+
+
+Supplementary materials - on website - future discussion
+* aggregate data
+* code 
+
+***
+## I. Introduction
+### A. Background on USDA > ERS > RUS
+### B. Background on Broadband Infrastructure Program
+#### 1. Definition of broadband
+***
+## II. Data Sources
+### A. Spatial data...? 
+#### 1.  Census tracts/blocks
+#### 2.  Custom shapes
+### B. FCC (did i use this for htis? )
+### C.  CoreLogic
+#### 1.  Tax Assessments
+#### 2.  Deeds  
+### D.  BIP shape data
+### E.  CASE STUDY: INDIANA
+***
+## III. Methods
+***
+## IV. Results
+***
+## V. Discussion
+***
+## VI. Bibliography
+***
+## VII. Data Citations
+***
+## V. Appendix
+***
+
