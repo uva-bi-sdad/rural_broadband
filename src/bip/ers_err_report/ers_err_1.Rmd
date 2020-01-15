@@ -4,8 +4,13 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE)
 ```
+
+```{r loaddata}
+approved_dbf <- foreign::read.dbf("~/git/rural_broadband/data/rus_broadband_servicearea/RD_BB_ApprovedSA.dbf")
+```
+
 
 ***Abstract:*** 
 
