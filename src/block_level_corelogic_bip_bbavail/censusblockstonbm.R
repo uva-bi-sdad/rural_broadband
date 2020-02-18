@@ -23,15 +23,46 @@ state_abbrev <- states$state_abbreviation[number]
 neighbors <- borders %>% filter(ST1 == state_abbrev | ST2 == state_abbrev) %>% mutate(neighbors = ifelse(ST1 == state_abbrev, ST2, ST1))
 neighbors <- c(neighbors$neighbors, state_abbrev)
 
-usa_bip_shapes <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/BIP_working/BIP_Approved.RDS")
+datapath2 <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/"
+usa_bip_shapes <- readRDS(paste0(datapath2, "working/BIP_working/BIP_Approved.RDS"))
 nearest_bips <- usa_bip_shapes[usa_bip_shapes$STUSPS %in% neighbors,]
-plot(nearest_bips$geometry)
+
+state_outline <- tigris::counties(state_abbrev) %>% st_as_sf() %>% st_transform(st_crs(usa_bip_shapes))
+plot(state_outline$geometry)
+plot(nearest_bips$geometry, add = TRUE, col = "red")
 
 state_blocks <- st_read(paste0(censusblocksfolder, states$files[number])) %>% st_transform(st_crs(usa_bip_shapes))
 state_centroids <- st_centroid(state_blocks)
 
-test <- st_distance(head(state_centroids, 2), nearest_bips)
+alldistances <- st_distance(nearest_bips, state_centroids) #rows = centroids #cols = BIPS
+mindist <- apply(alldistances, MARGIN=2, min)
+rm(alldistances)
 
+state_centroids$bip_dist = mindist
 
+hist(mindist[mindist < 1000])
+
+inbip <- state_centroids %>% filter(bip_dist <500)
+
+fcc2011_200 <- readRDS(paste0(datapath, "working/fcc2011_200byblock_count.RDS")) 
+fcc2011_3 <- readRDS(paste0(datapath, "working/fcc2011_3byblock_count.RDS"))  
+
+fcc2016_200 <- readRDS(paste0(datapath, "working/fcc2016_200byblock_count.RDS"))
+fcc2016_3 <- readRDS(paste0(datapath, "working/fcc2016_3byblock_count.RDS")) 
+
+state_bipdist_nbm11fcc16 <- state_centroids %>% 
+  left_join(fcc2011_200, by = c("GEOID10" = "GEOID")) %>% 
+  left_join(fcc2011_3, by = c("GEOID10" = "GEOID")) %>% 
+  left_join(fcc2016_200, by = c("GEOID10" = "GEOID")) %>% 
+  left_join(fcc2016_3, by = c("GEOID10" = "GEOID"))
+
+table(is.na(state_bipdist_nbm11fcc16$fcc2011_providers_200))
+table(is.na(state_bipdist_nbm11fcc16$fcc2011_providers_3))
+table(is.na(state_bipdist_nbm11fcc16$fcc2016_providers_200))
+table(is.na(state_bipdist_nbm11fcc16$fcc2016_providers_3))
+
+fcc2011_200____actuals <- readRDS(paste0(datapath, "working/fcc2011_200byblock.RDS")) 
+
+saveRDS(state_bipdist_nbm11fcc16, paste0(datapath2, "working/state_blocks_centroids_bipdist_2011_16/", "centroids_manip_", state_abbrev, ".RDS"))
 
 
