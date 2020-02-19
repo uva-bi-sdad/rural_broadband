@@ -10,8 +10,8 @@ conn <- dbConnect(drv = PostgreSQL(), dbname = "sdad",
                   host = "10.250.124.195", 
                   port = 5432, 
                   user = "dtn2ep", password = "dtn2ep")
-                  #user = Sys.getenv("db_userid"), 
-                  #password = Sys.getenv("db_pwd"))
+#user = Sys.getenv("db_userid"), 
+#password = Sys.getenv("db_pwd"))
 
 #dbListTables(conn, table_schema="corelogic_sdad")
 tables <-  dbListTables(conn) 
@@ -22,4 +22,4 @@ alabama_corelogic <- dbGetQuery(conn, "SELECT * FROM corelogic_sdad.tax_hist_1_0
 dbDisconnect(conn); rm(conn)
 
 
-
+colnames(alabama_corelogic)
