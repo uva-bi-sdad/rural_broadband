@@ -2,8 +2,11 @@ library(readr)
 library(tidyverse)
 library(stringr)
 library(sf)
- 
+library(tigris)
 
+rappdirs::user_cache_dir()
+ 
+options(tigris_use_cache = FALSE)
 
 #censusblocksfolder <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/"
 datapath <- "/project/biocomplexity/sdad/projects_data/usda/bb/"
@@ -25,9 +28,12 @@ states <- states %>% mutate(fips_code = ifelse(nchar(fips_code) == 1, paste0("0"
 
 borders <- read_csv(paste0(datapath, "original/stateborder.csv")) %>% select(2:3)
 
-number <- 41
+states <- states %>% filter(!str_detect(state_abbreviation, "AL|CA|CO|FL|GA|OH|NC|PA|TX"))
+
+number <- 9
 state_fips <-  states$fips_code[number]
 state_abbrev <- states$state_abbreviation[number]
+state_abbrev
 neighbors <- borders %>% filter(ST1 == state_abbrev | ST2 == state_abbrev) %>% mutate(neighbors = ifelse(ST1 == state_abbrev, ST2, ST1))
 neighbors <- c(neighbors$neighbors, state_abbrev)
 
@@ -35,7 +41,7 @@ datapath2 <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_
 usa_bip_shapes <- readRDS(paste0(datapath2, "working/BIP_working/BIP_Approved.RDS"))
 nearest_bips <- usa_bip_shapes[usa_bip_shapes$STUSPS %in% neighbors,]
 
-state_outline <- tigris::counties(state_abbrev) %>% st_as_sf() %>% st_transform(st_crs(usa_bip_shapes))
+state_outline <- tigris::counties(state_abbrev, refresh = TRUE) %>% st_as_sf() %>% st_transform(st_crs(usa_bip_shapes))
 
 state_blocks <- st_read(paste0(censusblocksfolder, states$files[number])) %>% st_transform(st_crs(usa_bip_shapes))
 state_centroids <- st_centroid(state_blocks)
@@ -50,7 +56,7 @@ hist(mindist[0 < mindist & mindist < 500])
 inbip <- state_centroids %>% filter(bip_dist <500 & bip_dist > 0)
 
 plot(state_outline$geometry)
-plot(nearest_bips$geometry, add = TRUE, col = "red")
+plot(nearest_bips$geometry, col = "red", add = TRUE)
 plot(inbip$geometry, add = TRUE, col = "blue", pch = 0)
 
 state_bipdist_nbm11fcc16 <- state_centroids %>% 
@@ -72,4 +78,8 @@ state_bipdist_nbm11fcc16 <- state_centroids %>%
 
 saveRDS(state_bipdist_nbm11fcc16, paste0(datapath2, "working/state_blocks_centroids_bipdist_2011_16/", "centroids_manip_", state_abbrev, ".RDS"))
 
-
+check <- list.files("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/state_blocks_centroids_bipdist_2011_16/")
+check <- str_remove_all(str_extract(check, "_[:alpha:][:alpha:].RDS"), "_|.RDS")
+length(check)
+nrow(states)
+setdiff(states$state_abbreviation, check)

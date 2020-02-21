@@ -1,8 +1,19 @@
-datapath2 <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/"
-alabama_bipdist_nbm11fcc16 <- readRDS(paste0(datapath2, "working/state_blocks_centroids_bipdist_2011_16/", "centroids_manip_", state_abbrev, ".RDS"))
+joinfold <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/state_blocks_centroids_bipdist_2011_16/"
+completedbip_fcc_blockjoins <- list.files(joinfold)
+completedbip_fcc_blockjoins <- paste0(joinfold, completedbip_fcc_blockjoins)
+
+library(sf)
+library(dplyr)
+
+#datapath <- "/project/biocomplexity/sdad/projects_data/usda/bb/"
+
+california <- readRDS(completedbip_fcc_blockjoins[2])
+
+# datapath2 <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/"
+# readRDS(paste0(datapath2, "working/state_blocks_centroids_bipdist_2011_16/", "centroids_manip_", state_abbrev, ".RDS"))
 
 
-alabama_bipdist_nbm11fcc16 
+#california
 library(RPostgreSQL)
 
 # connect to postgresql to get data (in rivanna)
@@ -15,9 +26,10 @@ conn <- dbConnect(drv = PostgreSQL(), dbname = "sdad",
 
 #dbListTables(conn, table_schema="corelogic_sdad")
 tables <-  dbListTables(conn) 
-tables <- tables[str_detect(tables, "tax")]
+tables <- tables[stringr::str_detect(tables, "state")]
 #corelogic <- dbGetQuery(conn, "SELECT fips_code, appr_total_value, acres, assessed_year FROM corelogic_sdad.tax_hist_1 WHERE fips_code = '01011' LIMIT 100")
-alabama_corelogic <- dbGetQuery(conn, "SELECT * FROM corelogic_sdad.tax_hist_1_01 LIMIT 100")
+#california_corelogic_db <- dbGetQuery(conn, "SELECT * FROM corelogic_usda.state8_fixed_join WHERE situs_state = 'CA' LIMIT 1000000")
+california_corelogic_db <- dbGetQuery(conn, "SELECT * FROM corelogic_usda.state8_fixed_join WHERE situs_state = 'CA'")
 # disconnect from postgresql
 dbDisconnect(conn); rm(conn)
 
