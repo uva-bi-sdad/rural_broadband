@@ -10,11 +10,13 @@ output: html_document
  
 ```{r libraries, include=FALSE, message=FALSE, echo=FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, error = FALSE, warning = FALSE)
+# install.packages("dplyr")
 library(dplyr)
 library(ggplot2)
 library(purrr)
 library(sf)  
 library(venn)
+library(ggthemes)
 ```
 
 ```{r functions}
@@ -61,7 +63,28 @@ bip_approved <- readRDS(paste0(project_folder, "working/BIP_working/BIP_Approved
 prot_borr_serv_area_sf <- st_read("/project/biocomplexity/sdad/projects_data/usda/bb/original/Protected_bb_borrower_service_areas/USDARD_ProtectedApproved02052020.dbf")
 
 prot_borr_serv_area <- prot_borr_serv_area_sf %>% st_set_geometry(NULL) 
+
+new_bip_approved_dbf <- foreign::read.dbf(paste0(project_folder, "RUS_BIP_Shapefiles_April2020/200409_BIP_ServAr_ID.dbf"))
+new_bip_approved_sf <- sf::st_read(paste0(project_folder, "RUS_BIP_Shapefiles_April2020/200409_BIP_ServAr_ID.shp"))
+new_masterfile <- readxl::read_excel(paste0(project_folder, "RUS_BIP_Shapefiles_April2020/200409_LinktoShapefile.xlsx"), sheet = 2)
+
+# old_master_file <- read.csv(paste0(paste0(project_folder, "rus_broadband_servicearea/RUS_programs.csv")))
 ```
+
+```{r}
+join_new <- new_bip_approved_sf %>% left_join(new_masterfile, by = c("ProjectID", "RUS_ID" = "RUSID"))
+join_new_df <- new_bip_approved_dbf %>% left_join(new_masterfile, by = c("ProjectID", "RUS_ID" = "RUSID"))
+
+table(join_new_df$`Obligation Status`)
+table(new_masterfile$`Obligation Status`)
+table(is.na(new_masterfile$RUSID))
+
+new_masterfile %>% count()
+
+new_bip_approved_dbf %>% right_join(new_masterfile, by = c("ProjectID", "RUS_ID" = "RUSID"))
+```
+
+
 
 ```{r plotsettings}
 customPlot2 = list(
@@ -559,11 +582,226 @@ TABLE 2 - 1:1 programs from approved SA
 approved_dbf %>% count(PROGRAMTYP, PROGRAMSER) %>% knitr::kable()
 ```
 
+***
+***
+***
+
+
+## NEW DATASET
+
+**Q. How complete is the data? **
+A. Basically 87% if we remove nulls?  
+```{r}
+check_complete(join_new_df) %>% knitr::kable()
+```
+
+
+```{r, eval = FALSE}
+usmap + 
+  geom_sf(data = join_new, aes(fill = PROGRAMTYP))
+```
+
+```{r , eval = FALSE}
+colnames(join_new_df)
+head(join_new_df)
+```
+
+**Q. How clean is the program information? **
+A. Cleaner than last year's data, cleaner than protected borrowers
+
+```{r}
+ggplot(join_new_df, aes(PROGRAMTYP, fill =  ProjectTypeID)) + 
+  geom_bar(stat = "count", position = position_dodge()) 
+  # geom_text(stat = ..count.., aes( y = ifelse(n <20, n +2, n + 200)), position = position_dodge(width = 1)) 
+```
+
+**Q. Who are the top 10 companies? **
+A. By number of shapes
+
+```{r}
+top10companies_NEW_bynumshapes <- join_new_df %>% count(COMPANY) %>% arrange(desc(n)) %>% head(10)
+
+ggplot(top10companies_NEW_bynumshapes, aes(reorder(COMPANY, n), n)) + 
+  geom_bar(stat = "identity") + coord_flip()
+```
+
+A. By area, as defined by their area variable (not our own calculations)
+
+```{r}
+top10companies_NEW_byarea <- join_new_df %>% group_by(COMPANY) %>% summarise(total_area = sum(`Shape__Are`)) %>% arrange(desc(total_area)) %>% head(10)
+
+ggplot(top10companies_NEW_byarea, aes(reorder(COMPANY, total_area), total_area)) + 
+  geom_bar(stat = "identity") + coord_flip()
+```
+
+A. By dollars of original obligation
+
+```{r}
+top10companies_NEW_bydollars <- join_new_df %>% group_by(COMPANY) %>% summarise(orig_obl = sum(`Original Obligation`)) %>% arrange(desc(orig_obl)) %>% head(10)
+
+top10companies_NEW_bydollars %>% mutate(orig_obl = scales::comma(orig_obl)) %>% knitr::kable()
+
+```
+
+**Q. What is the status of the projects described by this data? **
+A. Most appear to have received money (past application approval, past project approval, into project start?)
+
+```{r}
+ggplot(join_new_df, aes(`Obligation Status`)) +
+  geom_bar(stat = "count")
+```
+
+However some projects had money rescinded... 
+
+```{r}
+ggplot(join_new_df, aes(is.na(`Rescinded Amount`))) +
+  geom_bar(stat = "count")
+
+```
+
+**Q. Can we uniquely identify projects and their shpaes?**
+A. As before, every shape has a RUS ID and now most of the projects have linkable constituent shapes.
+
+```{r}
+ggplot(join_new_df, aes(is.na(`RUS_ID`), fill = is.na(ProjectID))) +
+  geom_bar(stat = "count")
+```
+
+A. Discrepancies in Project/Borrower shapefile availability probably explain this, i.e., maybe they just don't have it. 
+
+```{r}
+ggplot(join_new_df, aes(`Has Project Shapefile`, fill = `Has Borrower Shapefile`)) +
+  geom_bar(stat = "count")
+```
+
+**Q. What do maps look like?**
 
 
 
+```{r}
+hawaii_shapes <- join_new %>% filter(stringr::str_detect(RUS_ID, "^HI"))
+alaska_shapes <- join_new %>% filter(stringr::str_detect(RUS_ID, "^AK"))
+cont_us_shapes <- join_new %>% filter(RUS_ID %in% hawaii_shapes$RUS_ID == FALSE) %>% filter(RUS_ID %in% alaska_shapes$RUSID == FALSE) %>%
+  filter(stringr::str_detect(RUS_ID, "^(AS|GA)") == FALSE)
+```
 
 
+```{r ,eval = FALSE}
+library(ggthemes)
+devtools::install_github("wmurphyrd/fiftystater")
+library(fiftystater)
+usmap
 
+basemap <- ggplot() + geom_polygon( data=fifty_states, aes(x=long, y=lat, group = group),color="grey10", fill="white" )
+
+basemap + geom_sf(data = cont_us_shapes, aes(fill = PROGRAMTYP))
+
+table(stringr::str_extract(cont_us_shapes$RUSID, ".{0,2}"))
+```
+
+
+```{r}
+# Plot: ANY OVERLAP [min10, max200] -------------------------------------------------------------------------------------
+#
+
+# Plot contiguous states
+plot_main <- ggplot() +
+  geom_sf(data = cont_us_shapes, aes(fill = `ProjectTypeID`)) +
+  theme_map() +
+  coord_sf(crs = st_crs(2163), xlim = c(-2500000, 2500000), ylim = c(-2300000, 730000)) +
+  # labs(title = "Tract-Level ACS and FCC Broadband Subscription Estimate\nInterval Congruence [min10mbps, max200kbps]", 
+  #      subtitle = "Tracts with incongruent estimate ranges shown in grey (NA).",
+  #      caption = "Note: FCC = Federal Communications Commission, December 2016. ACS = American Community Survey, 2014-18.\nAlaska and Hawaii not to scale.") +
+  # scale_fill_manual(name = "Urbanicity", values = c("#fed98e", "#fe9929", "#d95f0e", "#993404"), na.value = "#f0f0f0") +
+  theme(plot.title = element_text(size = 16, face = "bold"),
+        legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 10),
+        legend.position = "top")
+
+# Plot Hawaii
+plot_hawaii <- ggplot() +
+  geom_sf(data = hawaii_shapes, aes(fill = `ProjectTypeID`))  +
+  theme_map() +
+  coord_sf(crs = st_crs(4135), xlim = c(-161, -154), ylim = c(18, 23), expand = FALSE) +
+  # scale_fill_manual(name = "Urbanicity", values = c("#fed98e", "#fe9929", "#d95f0e", "#993404"), na.value = "#f0f0f0") +
+  theme(legend.position = "none")
+
+# Plot Alaska
+plot_alaska <- ggplot() +
+  geom_sf(data = alaska_shapes, aes(fill = `ProjectTypeID`)) +
+  theme_map() +
+  coord_sf(crs = st_crs(3467), xlim = c(-2400000, 1600000), ylim = c(200000, 2500000), expand = FALSE) +
+  # scale_fill_manual(name = "Urbanicity", values = c("#fed98e", "#fe9929", "#d95f0e", "#993404"), na.value = "#f0f0f0") +
+  theme(legend.position = "none")
+
+# Plot all
+plot_min10max200 <- plot_main +
+  annotation_custom(grob = ggplotGrob(plot_alaska),
+                    xmin = -3350000,
+                    xmax = -3350000 + (1600000 - (-2400000))/1.8,
+                    ymin = -2450000,
+                    ymax = -2450000 + (2500000 - 200000)/1.8) +
+  annotation_custom(grob = ggplotGrob(plot_hawaii),
+                    xmin = -1700000,
+                    xmax = -1700000 + (-154 - (-161))*230000,
+                    ymin = -2450000,
+                    ymax = -2450000 + (23 - 18)*230000)
+```
+
+```{r}
+plot_min10max200
+```
+
+```{r}
+# Plot: ANY OVERLAP [min10, max200] -------------------------------------------------------------------------------------
+#
+
+# Plot contiguous states
+plot_main <- ggplot() +
+  geom_sf(data = cont_us_shapes, aes(fill = `Original Obligation`/1000)) +
+  theme_map() +
+  coord_sf(crs = st_crs(2163), xlim = c(-2500000, 2500000), ylim = c(-2300000, 730000)) +
+  # labs(title = "Tract-Level ACS and FCC Broadband Subscription Estimate\nInterval Congruence [min10mbps, max200kbps]", 
+  #      subtitle = "Tracts with incongruent estimate ranges shown in grey (NA).",
+  #      caption = "Note: FCC = Federal Communications Commission, December 2016. ACS = American Community Survey, 2014-18.\nAlaska and Hawaii not to scale.") +
+  # scale_fill_manual(name = "Urbanicity", values = c("#fed98e", "#fe9929", "#d95f0e", "#993404"), na.value = "#f0f0f0") +
+  theme(plot.title = element_text(size = 16, face = "bold"),
+        legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 10),
+        legend.position = "right")
+
+# Plot Hawaii
+plot_hawaii <- ggplot() +
+  geom_sf(data = hawaii_shapes, aes(fill = `Original Obligation`/1000))  +
+  theme_map() +
+  coord_sf(crs = st_crs(4135), xlim = c(-161, -154), ylim = c(18, 23), expand = FALSE) +
+  # scale_fill_manual(name = "Urbanicity", values = c("#fed98e", "#fe9929", "#d95f0e", "#993404"), na.value = "#f0f0f0") +
+  theme(legend.position = "none")
+
+# Plot Alaska
+plot_alaska <- ggplot() +
+  geom_sf(data = alaska_shapes, aes(fill = `Original Obligation`/1000)) +
+  theme_map() +
+  coord_sf(crs = st_crs(3467), xlim = c(-2400000, 1600000), ylim = c(200000, 2500000), expand = FALSE) +
+  # scale_fill_manual(name = "Urbanicity", values = c("#fed98e", "#fe9929", "#d95f0e", "#993404"), na.value = "#f0f0f0") +
+  theme(legend.position = "none")
+
+# Plot all
+plot_min10max200 <- plot_main +
+  annotation_custom(grob = ggplotGrob(plot_alaska),
+                    xmin = -3350000,
+                    xmax = -3350000 + (1600000 - (-2400000))/1.8,
+                    ymin = -2450000,
+                    ymax = -2450000 + (2500000 - 200000)/1.8) +
+  annotation_custom(grob = ggplotGrob(plot_hawaii),
+                    xmin = -1700000,
+                    xmax = -1700000 + (-154 - (-161))*230000,
+                    ymin = -2450000,
+                    ymax = -2450000 + (23 - 18)*230000)
+```
+
+```{r}
+plot_min10max200
+```
 
 
