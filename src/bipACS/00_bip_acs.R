@@ -1,4 +1,4 @@
-# update 1/24/20 JG
+# update 4/13/20 JG
 # summarize ACS variables by Census Tract
 # include %area covered by BIP regions, %within buffer distance (5, 10, 25, 50 mi), RUCC and RUCA codes
 
@@ -13,25 +13,37 @@ library(data.table)
 library(dplyr)
 
 options(scipen=999)
-# load("~/git/rural_broadband/src/BIPsummaries/bip_acs.RData")
+setwd("~/git/rural_broadband/src/bipACS")
+# load("~/git/rural_broadband/src/bipACS/bip_acs.RData")
 
 # --------------------------------------------------------------------------------------------
 # read in Census tracts
 # --------------------------------------------------------------------------------------------
 
-con <- DBI::dbConnect(drv = RPostgreSQL::PostgreSQL(),
-                      dbname = "gis",
-                      host = "postgis_1",
-                      port = "5432",
-                      user = "jrg3bs",
-                      password = "jrg3bs")
+get_db_conn <-
+  function(db_name = "sdad",
+           db_host = "postgis1",
+           db_port = "5432",
+           db_user = Sys.getenv("db_usr"),
+           db_pass = Sys.getenv("db_pwd")) {
+    RPostgreSQL::dbConnect(
+      drv = RPostgreSQL::PostgreSQL(),
+      dbname = db_name,
+      host = db_host,
+      port = db_port,
+      user = db_user,
+      password = db_pass
+    )
+  }
+
+con <- get_db_conn()
 
 # continental + AK, HI state fips
 state_fips <- c( unique(state.fips$fips), 2, 15 )
 state_fips <- formatC(state_fips,width=2,flag=0)
 tracts <- list()
 for(i in 1:length(state_fips)){
-  tracts[[i]] <- sf::st_read(con,c("census_cb",paste0("cb_2018_",state_fips[i],"_tract_500k")))
+  tracts[[i]] <- sf::st_read(con,c("gis_census_cb",paste0("cb_2018_",state_fips[i],"_tract_500k")))
 }
 
 tracts_us <- do.call(rbind, tracts)
@@ -40,56 +52,11 @@ tracts_us <- do.call(rbind, tracts)
 # read in BIP shapefiles (nationally)
 # --------------------------------------------------------------------------------------------
 
-# Protected Broadband Borrower Service Areas - https://www.usda.gov/reconnect/eligibility-area-map-datasets
-#This layer includes the service areas of entities that received a Telecommunications Infrastructure loan, Farm Bill Broadband loan (Farm Bill),
-#or Broadband Initiatives Program (BIP) loan in or after Fiscal Year (FY) 2000. Service areas of projects that were approved but were subsequently 
-#de-obligated are not protected and have been omitted from this layer. The current dataset is dated September 3, 2019. A new dataset will be 
-#available for download prior to the opening of the application window.
-
-# 2019 updated shapefile:
-RUS_servicearea <- st_read(dsn="~/git/rural_broadband/data/rus_broadband_servicearea/", layer="ProtectedBorrowers04222019")
-
-# RUS program information:
-RUS_program <- read.csv("~/git/rural_broadband/data/rus_broadband_servicearea/RUS_programs.csv")
-
-#table(RUS_program$ProgramID)
-#BIP CCG FBB INF RCP 
-#325 128  15 227   1 
-
-#BIP	Broadband Initiatives Program
-#CCG	Community Connect Grant Program
-#FBB	Broadband Program
-#INF	Telecom Loan Program
-#RCP	ReConnect Program
-
-# NOTE: looks like we can only join based only on the company (BorrowerID), not on the specific project (ProjectID)
-
-table( RUS_program$BorrowerID %in% RUS_servicearea$RUSID_1 ) # 366
-table( RUS_program$BorrowerID %in% RUS_servicearea$RUSID_2 ) # 102
-table( RUS_program$BorrowerID %in% RUS_servicearea$RUSID_3 ) # 21
-
-RUS_program$has_shapefile <- RUS_program$BorrowerID %in% RUS_servicearea$RUSID_1 | RUS_program$BorrowerID %in% RUS_servicearea$RUSID_2 |
-  RUS_program$BorrowerID %in% RUS_servicearea$RUSID_3
-table(RUS_program$has_shapefile) # 472 / 696 programs have service area shapefiles by RUSID
-table(RUS_program$has_shapefile, RUS_program$ProgramID)
-#      BIP CCG FBB INF RCP
-#FALSE 151  55   6  11   1
-#TRUE  174  73   9 216   0
-
-# only 174/325 BIP projects in program data have associated shapefiles (RUSID to BorrowerID)
-
-# --------------------------------------------------------------------------------------------
-# get buffer area around shapefiles (5, 10, 25, 50 miles)
-# --------------------------------------------------------------------------------------------
-
-# original shapefile: 
-#bip <- readRDS("~/git/rural_broadband/data/working/BIP_working/BIP_Approved.RDS")
-# length(unique(bip$APPLICATIO))
-# 217 unique applications
+load("BIP_New.rds")
+bip_all <- newbip_all
+bip <- newbip_union
 
 # use st_buffer to get area around shapefiles; then st_difference to remove the area in BIP
-bip_all <- st_union(bip)
-
 m_per_mi <- 1609.34 # converting meters to miles
 
 bip_5mi_buffer <- st_buffer(bip_all, dist = 5*m_per_mi)
@@ -107,6 +74,8 @@ bip_50mi <- st_difference(bip_50mi_buffer, bip_all)
 # --------------------------------------------------------------------------------------------
 # get %area intersection between BIP and tracts
 # --------------------------------------------------------------------------------------------
+
+tracts_us <- st_transform(tracts_us, st_crs(bip))
 
 # find which intersect and get the proportional area
 ind_intersect <- which(lengths(st_intersects(tracts_us,bip)) > 0)
@@ -136,39 +105,35 @@ intersect_50mi <- st_intersection(tracts_us[ind_50mi,],bip_50mi)
 prop_area_50mi <- as.numeric( st_area(intersect_50mi) / st_area( tracts_us %>% filter(GEOID %in% intersect_50mi$GEOID) ) )
 tracts_us$BIP_PROP_50MI <- 0; tracts_us$BIP_PROP_50MI[tracts_us$GEOID %in% intersect_50mi$GEOID] <- prop_area_50mi
 
+
+# save.image("~/git/rural_broadband/src/bipACS/bip_acs.RData")
+
 # --------------------------------------------------------------------------------------------
-# also attach county-level RUCC code, tract-level RUCA code
+# attach county-level RUCC code, tract-level RUCA code
 # --------------------------------------------------------------------------------------------
 
 # join RUCC codes by county
-rucc2013 <- fread("~/git/rural_broadband/data/RUCC2013/ruralurbancodes2013.csv")
+rucc2013 <- fread("~/git/rural_broadband/dat/RUCC2013/ruralurbancodes2013.csv")
 
 tracts_us$GEOID5 <- as.numeric( substr(tracts_us$GEOID,1,5) )
 tracts_us <- tracts_us %>% left_join(rucc2013 %>% dplyr::select(FIPS,RUCC_2013), by=c("GEOID5"="FIPS"))
 # note 4 tracts do not join; County geography changes from 2013 to 2018 (02158, 46102)
 
-ruca2010 <- fread("~/git/rural_broadband/data/RUCA2010/ruca2010revised.csv",
+ruca2010 <- fread("~/git/rural_broadband/dat/RUCA2010/ruca2010revised.csv",
                   colClasses = c(GEOID="character"))
 ruca2010 <- ruca2010 %>% dplyr::select(GEOID,RUCA_2010=RUCA2010,RUCA_2010_SECONDARY='Secondary RUCA2010')
 tracts_us <- tracts_us %>% left_join(ruca2010, by=c("GEOID"))
 
 # --------------------------------------------------------------------------------------------
-# call 2017 5-year ACS variables (centered at 2015)
+# call several sets of ACS estimates for Census tract by year
 # --------------------------------------------------------------------------------------------
 
-# state_fips <- unique(fips_codes$state)[1:51]
-
-# see brookingsOLS.R, propertyvalues.R
-# additional variables:
-# B19013 MEDIAN INCOME (1 column)
-# B25077 MEDIAN VALUE (dollars) of Owner Occupied Housing Units (1 column)
-# B23025 EMPLOYMENT STATUS FOR THE POPULATION 16 YEARS AND OVER (003=civilian labor force, 005=unemployed)
 library(tidycensus)
 
 census_api_key("853b2a1e71aa0aff0f3db966545e8898c73f0772")
 
-acs_vars <- c("B15003_001","B15003_002","B15003_003","B15003_004","B15003_005","B15003_006","B15003_007","B15003_008","B15003_009",
-              "B15003_010","B15003_011","B15003_012","B15003_013","B15003_014","B15003_015","B15003_016","B15003_017","B15003_018",
+acs_vars <- c("B15002_001","B15002_003","B15002_004","B15002_005","B15002_006","B15002_007","B15002_008","B15002_009","B15002_010","B15002_011",
+              "B15002_020","B15002_021","B15002_022","B15002_023","B15002_024","B15002_025","B15002_026","B15002_027","B15002_028",
               "B17001_001","B17001_002",
               "B01001_001","B01001_020","B01001_021","B01001_022","B01001_023","B01001_024","B01001_025",
               "B01001_044","B01001_045","B01001_046","B01001_047","B01001_048","B01001_049",
@@ -183,275 +148,337 @@ acs_vars <- c("B15003_001","B15003_002","B15003_003","B15003_004","B15003_005","
               "B25024_001", "B25024_002", "B25024_003", "B25024_004", "B25024_005", "B25024_006", "B25024_007", "B25024_008", "B25024_009", "B25024_010", "B25024_011",
               "B25035_001", "B25041_001", "B25041_002", "B25041_003", "B25041_004", "B25041_005", "B25041_006", "B25041_007", "B25064_001", "B25065_001")
 
-# get a the string with all ACS variables and call them at the tract level; loop over states
-#test <- get_acs(geography="tract",state=state_fips[1],variables=acs_vars,year=2017,cache_table=TRUE,output="wide")
-#test <- get_acs(geography="tract",state=state_fips[1],variables=acs_vars,year=2012,cache_table=TRUE,output="wide")
-# these variables work for both periods
-tmp <- list()
-for(i in 1:length(state_fips)){
-  tmp[[i]] <- get_acs(geography="tract",state=state_fips[i],variables=acs_vars,year=2017,cache_table=TRUE,output="wide")
+acs_vars_2010 <- c("B15002_001","B15002_003","B15002_004","B15002_005","B15002_006","B15002_007","B15002_008","B15002_009","B15002_010","B15002_011",
+                   "B15002_020","B15002_021","B15002_022","B15002_023","B15002_024","B15002_025","B15002_026","B15002_027","B15002_028",
+                   "B17001_001","B17001_002",
+                   "B01001_001","B01001_020","B01001_021","B01001_022","B01001_023","B01001_024","B01001_025",
+                   "B01001_044","B01001_045","B01001_046","B01001_047","B01001_048","B01001_049",
+                   "B03003_001","B03003_003",
+                   "B02001_001","B02001_003",
+                   "B05002_001","B05002_013",
+                   "B19013_001",
+                   "B25077_001",
+                   "B25001_001", "B25002_001", "B25002_002", "B25002_003", "B25003_001", "B25003_002", "B25003_003", 
+                   "B25024_001", "B25024_002", "B25024_003", "B25024_004", "B25024_005", "B25024_006", "B25024_007", "B25024_008", "B25024_009", "B25024_010", "B25024_011",
+                   "B25035_001", "B25041_001", "B25041_002", "B25041_003", "B25041_004", "B25041_005", "B25041_006", "B25041_007", "B25064_001", "B25065_001")
+
+# get ACS variables for a given year for all US census tracts
+# for 2006-2010 5-year don't include family, employment (no tables in API)
+get_acs_vars <- function(year, vars){
+  tmp <- list()
+  for(i in 1:length(state_fips)){
+    tmp[[i]] <- get_acs(geography="tract",state=state_fips[i],variables=vars,year=year,cache_table=TRUE,output="wide")
+  }
+  acs_est <- rbindlist(tmp)
+
+  acs_estimates <- acs_est %>% transmute(
+    GEOID=GEOID,
+    population = B01001_001E,
+    hs_or_less = (B15002_003E+B15002_004E+B15002_005E+B15002_006E+B15002_007E+B15002_008E+B15002_009E+B15002_010E+B15002_011E+
+                    B15002_020E+B15002_021E+B15002_022E+B15002_023E+B15002_024E+B15002_025E+B15002_026E+B15002_027E+B15002_028E) / B15002_001E,
+    poverty = B17001_002E / B17001_001E,
+    age_65_older = (B01001_020E+B01001_021E+B01001_022E+B01001_023E+B01001_024E+B01001_025E+
+                      B01001_044E+B01001_045E+B01001_046E+B01001_047E+B01001_048E+B01001_049E)/ B01001_001E,
+    hispanic = B03003_003E / B03003_001E,
+    black = B02001_003E / B02001_001E,
+    foreign = B05002_013E / B05002_001E,
+    median_income = B19013_001E,
+    median_value = B25077_001E,
+    median_yrbuilt = B25035_001E,
+    bed_total = B25041_001E,
+    bed_none = B25041_002E,
+    bed_1 = B25041_003E,
+    bed_2 = B25041_004E,
+    bed_3 = B25041_005E,
+    bed_4 = B25041_006E,
+    bed_5plus= B25041_007E,
+    rent_mediangross = B25064_001E, 
+    rent_aggreggross = B25065_001E,
+    hunits_total = B25001_001E,
+    occstatus_total = B25002_001E,
+    occstatus_occup = B25002_002E,
+    occstatus_vac = B25002_003E,
+    tenure_total= B25003_001E,
+    tenure_own = B25003_002E,
+    tenure_rent = B25003_003E,
+    unitno_total = B25024_001E,
+    unitno_1det = B25024_002E,
+    unitno_1at = B25024_003E,
+    unitno_2 = B25024_004E,
+    unitno_3or4 = B25024_005E,
+    unitno_5to9 = B25024_006E,
+    unitno_10to19 = B25024_007E,
+    unitno_20to49 = B25024_008E,
+    unitno_50plus = B25024_009E,
+    unitno_mobile = B25024_010E,
+    unitno_other = B25024_011E
+  )
+  if(year >= 2012) { acs_estimates <- cbind(acs_estimates,
+                                            acs_est %>% transmute(  
+                                              family = B09019_003E / B09019_002E,
+                                              unemployment = B23025_005E/B23025_003E
+                                            )
+  )}
+  names(acs_estimates)[2:length(names(acs_estimates))] <-
+    paste0(names(acs_estimates)[2:length(names(acs_estimates))],"_",year)
+  return(acs_estimates)  
 }
-acs_est_2015 <- rbindlist(tmp)
 
-acs_estimates_2015 <- acs_est_2015 %>% transmute(
-  GEOID=GEOID,
-  population = B01001_001E,
-  hs_or_less = (B15003_002E+B15003_003E+B15003_004E+B15003_005E+B15003_006E+B15003_007E+B15003_008E+B15003_009E+B15003_010E+
-                  B15003_011E+B15003_012E+B15003_013E+B15003_014E+B15003_015E+B15003_016E+B15003_017E+B15003_018E) / B15003_001E,
-  poverty = B17001_002E / B17001_001E,
-  age_65_older = (B01001_020E+B01001_021E+B01001_022E+B01001_023E+B01001_024E+B01001_025E+
-                    B01001_044E+B01001_045E+B01001_046E+B01001_047E+B01001_048E+B01001_049E)/ B01001_001E,
-  hispanic = B03003_003E / B03003_001E,
-  black = B02001_003E / B02001_001E,
-  family = B09019_003E / B09019_002E,
-  foreign = B05002_013E / B05002_001E,
-  median_income = B19013_001E,
-  unemployment = B23025_005E/B23025_003E,
-  median_value = B25077_001E,
-  median_yrbuilt = B25035_001E,
-  bed_total = B25041_001E,
-  bed_none = B25041_002E,
-  bed_1 = B25041_003E,
-  bed_2 = B25041_004E,
-  bed_3 = B25041_005E,
-  bed_4 = B25041_006E,
-  bed_5plus= B25041_007E,
-  rent_mediangross = B25064_001E, 
-  rent_aggreggross = B25065_001E,
-  hunits_total = B25001_001E,
-  occstatus_total = B25002_001E,
-  occstatus_occup = B25002_002E,
-  occstatus_vac = B25002_003E,
-  tenure_total= B25003_001E,
-  tenure_own = B25003_002E,
-  tenure_rent = B25003_003E,
-  unitno_total = B25024_001E,
-  unitno_1det = B25024_002E,
-  unitno_1at = B25024_003E,
-  unitno_2 = B25024_004E,
-  unitno_3or4 = B25024_005E,
-  unitno_5to9 = B25024_006E,
-  unitno_10to19 = B25024_007E,
-  unitno_20to49 = B25024_008E,
-  unitno_50plus = B25024_009E,
-  unitno_mobile = B25024_010E,
-  unitno_other = B25024_011E
-)
+acs_estimates_2018 <- get_acs_vars(2018, acs_vars)
+acs_estimates_2015 <- get_acs_vars(2015, acs_vars)
+acs_estimates_2013 <- get_acs_vars(2013, acs_vars)
+acs_estimates_2010 <- get_acs_vars(2010, acs_vars_2010)
 
-# --------------------------------------------------------------------------------------------
-# call 2012 5-year ACS variables (centered at 2010)
-# --------------------------------------------------------------------------------------------
-
-# same code as above but with year=2012
-tmp <- list()
-for(i in 1:length(state_fips)){
-  tmp[[i]] <- get_acs(geography="tract",state=state_fips[i],variables=acs_vars,year=2012,cache_table=TRUE,output="wide")
-}
-acs_est_2010 <- rbindlist(tmp)
-
-acs_estimates_2010 <- acs_est_2010 %>% transmute(
-  GEOID=GEOID,
-  population = B01001_001E,
-  hs_or_less = (B15003_002E+B15003_003E+B15003_004E+B15003_005E+B15003_006E+B15003_007E+B15003_008E+B15003_009E+B15003_010E+
-                  B15003_011E+B15003_012E+B15003_013E+B15003_014E+B15003_015E+B15003_016E+B15003_017E+B15003_018E) / B15003_001E,
-  poverty = B17001_002E / B17001_001E,
-  age_65_older = (B01001_020E+B01001_021E+B01001_022E+B01001_023E+B01001_024E+B01001_025E+
-                    B01001_044E+B01001_045E+B01001_046E+B01001_047E+B01001_048E+B01001_049E)/ B01001_001E,
-  hispanic = B03003_003E / B03003_001E,
-  black = B02001_003E / B02001_001E,
-  family = B09019_003E / B09019_002E,
-  foreign = B05002_013E / B05002_001E,
-  median_income = B19013_001E,
-  unemployment = B23025_005E/B23025_003E,
-  median_value = B25077_001E,
-  median_yrbuilt = B25035_001E,
-  bed_total = B25041_001E,
-  bed_none = B25041_002E,
-  bed_1 = B25041_003E,
-  bed_2 = B25041_004E,
-  bed_3 = B25041_005E,
-  bed_4 = B25041_006E,
-  bed_5plus= B25041_007E,
-  rent_mediangross = B25064_001E, 
-  rent_aggreggross = B25065_001E,
-  hunits_total = B25001_001E,
-  occstatus_total = B25002_001E,
-  occstatus_occup = B25002_002E,
-  occstatus_vac = B25002_003E,
-  tenure_total= B25003_001E,
-  tenure_own = B25003_002E,
-  tenure_rent = B25003_003E,
-  unitno_total = B25024_001E,
-  unitno_1det = B25024_002E,
-  unitno_1at = B25024_003E,
-  unitno_2 = B25024_004E,
-  unitno_3or4 = B25024_005E,
-  unitno_5to9 = B25024_006E,
-  unitno_10to19 = B25024_007E,
-  unitno_20to49 = B25024_008E,
-  unitno_50plus = B25024_009E,
-  unitno_mobile = B25024_010E,
-  unitno_other = B25024_011E
-)
-
-# join both to tracts_us (left join on GEOID)
-names(acs_estimates_2015)[2:length(names(acs_estimates_2015))] <-
-  paste0(names(acs_estimates_2015)[2:length(names(acs_estimates_2015))],"_2015")
-names(acs_estimates_2010)[2:length(names(acs_estimates_2010))] <-
-  paste0(names(acs_estimates_2010)[2:length(names(acs_estimates_2010))],"_2010")
 
 tracts_us2 <- tracts_us %>% left_join(acs_estimates_2010, by="GEOID")
-# adjust 2012 5-year data on income, property value to 2017 dollars
-# (https://www.usinflationcalculator.com/; 1.068)
-tracts_us2$median_income_2010_adj <- round(tracts_us2$median_income * 1.068,0)
-tracts_us2$median_value_2010_adj <- round(tracts_us2$median_value * 1.068,0)
-
+tracts_us2 <- tracts_us2 %>% left_join(acs_estimates_2013, by="GEOID")
 tracts_us2 <- tracts_us2 %>% left_join(acs_estimates_2015, by="GEOID")
+tracts_us2 <- tracts_us2 %>% left_join(acs_estimates_2018, by="GEOID")
 tracts_us2 <- dplyr::select(as.data.frame(tracts_us2), -geometry) # convert to data frame
 tracts_us2[is.na(tracts_us2)] <- NA # convert NaN to NA for consistency
 
+# adjust all income and home values to 2018 dollars
+# (using BLS CPI data at https://www.usinflationcalculator.com/)
+adj_2018 <- 1
+adj_2015 <- 1.059
+adj_2013 <- 1.078
+adj_2010 <- 1.152
+
+tracts_us2$median_income_adj_2018 <- round(tracts_us2$median_income_2018 * adj_2018,0)
+tracts_us2$median_value_adj_2018 <- round(tracts_us2$median_value_2018 * adj_2018,0)
+tracts_us2$median_income_adj_2015 <- round(tracts_us2$median_income_2015 * adj_2015,0)
+tracts_us2$median_value_adj_2015 <- round(tracts_us2$median_value_2015 * adj_2015,0)
+tracts_us2$median_income_adj_2013 <- round(tracts_us2$median_income_2013 * adj_2013,0)
+tracts_us2$median_value_adj_2013 <- round(tracts_us2$median_value_2013 * adj_2013,0)
+tracts_us2$median_income_adj_2010 <- round(tracts_us2$median_income_2010 * adj_2010,0)
+tracts_us2$median_value_adj_2010 <- round(tracts_us2$median_value_2010 * adj_2010,0)
+
+
+# save.image("~/git/rural_broadband/src/bipACS/bip_acs.RData")
+
 # --------------------------------------------------------------------------------------------
-# summarize ACS tract distributions:
-# 2015 BIP, nonBIP, close to BIP (5,10,25,50), >75% rural, <75% rural, RUCC
-# 2010 BIP, nonBIP, close to BIP (5,10,25,50), >75% rural, <75% rural, RUCC
+# join FCC-ACS congruence
 # --------------------------------------------------------------------------------------------
 
-computeACSsummary2010 <- function(df,source,weights,weights_hh){
-  df$weights <- weights
-  df$weights_hh <- weights_hh
-  df <- df %>% filter(!is.na(weights),!is.na(weights_hh))
-  summaryvars <- data.frame(
-    source=source,
-    hs_or_less_2010 = as.numeric(df %>% filter(!is.na(hs_or_less_2010)) %>% summarize(hs_or_less_2010=sum(weights*hs_or_less_2010)/sum(weights))),
-    poverty_2010 = as.numeric(df %>% filter(!is.na(poverty_2010)) %>% summarize(poverty_2010=sum(weights*poverty_2010)/sum(weights))),
-    age_65_older_2010 = as.numeric(df %>% filter(!is.na(age_65_older_2010)) %>% summarize(age_65_older_2010=sum(weights*age_65_older_2010)/sum(weights))),
-    hispanic_2010 = as.numeric(df %>% filter(!is.na(hispanic_2010)) %>% summarize(hispanic_2010=sum(weights*hispanic_2010)/sum(weights))),
-    black_2010 = as.numeric(df %>% filter(!is.na(black_2010)) %>% summarize(black_2010=sum(weights*black_2010)/sum(weights))),
-    foreign_2010 = as.numeric(df %>% filter(!is.na(foreign_2010)) %>% summarize(foreign_2010=sum(weights*foreign_2010)/sum(weights))),
-    unemployment_2010 = as.numeric(df %>% filter(!is.na(unemployment_2010)) %>% summarize(unemployment_2010=sum(weights*unemployment_2010)/sum(weights))),
-    family_2010 = as.numeric(df %>% filter(!is.na(family_2010)) %>% summarize(family_2010=sum(weights_hh*family_2010)/sum(weights_hh))),
-    median_income_2010 = as.numeric(df %>% filter(!is.na(median_income_2010_adj)) %>% summarize(median_income_2010_adj=sum(weights_hh*median_income_2010_adj)/sum(weights_hh))),
-    median_value_2010 = as.numeric(df %>% filter(!is.na(median_value_2010_adj)) %>% summarize(median_value_2010_adj=sum(weights_hh*median_value_2010_adj)/sum(weights_hh)))
-  )
-  summaryvars
-}
+# NOTE: replace with Teja's new results (ADD 3 VARIABLES AS PER NOTES)
 
-computeACSsummary2015 <- function(df,source,weights,weights_hh){
-  df$weights <- weights
-  df$weights_hh <- weights_hh
-  df <- df %>% filter(!is.na(weights),!is.na(weights_hh))
-  summaryvars <- data.frame(
-    source=source,
-    hs_or_less_2015 = as.numeric(df %>% filter(!is.na(hs_or_less_2015)) %>% summarize(hs_or_less_2015=sum(weights*hs_or_less_2015)/sum(weights))),
-    poverty_2015 = as.numeric(df %>% filter(!is.na(poverty_2015)) %>% summarize(poverty_2015=sum(weights*poverty_2015)/sum(weights))),
-    age_65_older_2015 = as.numeric(df %>% filter(!is.na(age_65_older_2015)) %>% summarize(age_65_older_2015=sum(weights*age_65_older_2015)/sum(weights))),
-    hispanic_2015 = as.numeric(df %>% filter(!is.na(hispanic_2015)) %>% summarize(hispanic_2015=sum(weights*hispanic_2015)/sum(weights))),
-    black_2015 = as.numeric(df %>% filter(!is.na(black_2015)) %>% summarize(black_2015=sum(weights*black_2015)/sum(weights))),
-    foreign_2015 = as.numeric(df %>% filter(!is.na(foreign_2015)) %>% summarize(foreign_2015=sum(weights*foreign_2015)/sum(weights))),
-    unemployment_2015 = as.numeric(df %>% filter(!is.na(unemployment_2015)) %>% summarize(unemployment_2015=sum(weights*unemployment_2015)/sum(weights))),
-    family_2015 = as.numeric(df %>% filter(!is.na(family_2015)) %>% summarize(family_2015=sum(weights_hh*family_2015)/sum(weights_hh))),
-    median_income_2015 = as.numeric(df %>% filter(!is.na(median_income_2015)) %>% summarize(median_income_2015=sum(weights_hh*median_income_2015)/sum(weights_hh))),
-    median_value_2015 = as.numeric(df %>% filter(!is.na(median_value_2015)) %>% summarize(median_value_2015=sum(weights_hh*median_value_2015)/sum(weights_hh)))
-  )
-  summaryvars
-}
+fcc_acs_congruent <- fread("~/git/rural_broadband/src/bipACS/fcc_acs_congruent.csv",
+                           colClasses = c(GEOID="character"))
+tracts_us3 <- tracts_us2 %>% left_join(fcc_acs_congruent, by="GEOID")
 
-# compute ACS summaries; weight by person or household variables
-acs_2010_summaries <- rbind(
-  computeACSsummary2010(df=tracts_us2, source="National",
-                        weights=tracts_us2$population_2010,
-                        weights_hh=tracts_us2$hunits_total_2010
-  ),
-  computeACSsummary2010(df=tracts_us2, source="BIP Regions",
-                        weights=tracts_us2$population_2010 *(tracts_us2$BIP_PROP_AREA),
-                        weights_hh=tracts_us2$hunits_total_2010*(tracts_us2$BIP_PROP_AREA)
-  ),
-  computeACSsummary2010(df=tracts_us2, source="BIP Within 5MI",
-                        weights=tracts_us2$population_2010 *(tracts_us2$BIP_PROP_5MI),
-                        weights_hh=tracts_us2$hunits_total_2010*(tracts_us2$BIP_PROP_5MI)
-  ),
-  computeACSsummary2010(df=tracts_us2, source="BIP Within 10MI",
-                        weights=tracts_us2$population_2010 *(tracts_us2$BIP_PROP_10MI),
-                        weights_hh=tracts_us2$hunits_total_2010*(tracts_us2$BIP_PROP_10MI)
-  ),
-  computeACSsummary2010(df=tracts_us2, source="BIP Within 25MI",
-                        weights=tracts_us2$population_2010 *(tracts_us2$BIP_PROP_25MI),
-                        weights_hh=tracts_us2$hunits_total_2010*(tracts_us2$BIP_PROP_25MI)
-  ),
-  computeACSsummary2010(df=tracts_us2, source="BIP Within 50MI",
-                        weights=tracts_us2$population_2010 *(tracts_us2$BIP_PROP_50MI),
-                        weights_hh=tracts_us2$hunits_total_2010*(tracts_us2$BIP_PROP_50MI)
-  ),
-  computeACSsummary2010(df=tracts_us2, source="Rural (RUCC 7-9)",
-                        weights=tracts_us2$population_2010 *(tracts_us2$RUCC_2013 >= 7),
-                        weights_hh=tracts_us2$hunits_total_2010*(tracts_us2$RUCC_2013 >= 7)
-  ),
-  computeACSsummary2010(df=tracts_us2, source="Rural (RUCA 7-10)",
-                        weights=tracts_us2$population_2010 *(tracts_us2$RUCA_2010 >= 7),
-                        weights_hh=tracts_us2$hunits_total_2010*(tracts_us2$RUCA_2010 >= 7)
-  ),
-  computeACSsummary2010(df=tracts_us2, source="Urban (RUCC 1-6)",
-                        weights=tracts_us2$population_2010 *(tracts_us2$RUCC_2013 <= 6),
-                        weights_hh=tracts_us2$hunits_total_2010*(tracts_us2$RUCC_2013 <= 6)
-  ),
-  computeACSsummary2010(df=tracts_us2, source="Urban (RUCA 1-6)",
-                        weights=tracts_us2$population_2010 *(tracts_us2$RUCA_2010 <= 6),
-                        weights_hh=tracts_us2$hunits_total_2010*(tracts_us2$RUCA_2010 <= 6)
-  )
+#table(tracts_us3$acs_within_fcc)
+#0     1 
+#32203 40510 
+
+# --------------------------------------------------------------------------------------------
+# join FCC-ACS subscription rates (at 200 kbps)
+# --------------------------------------------------------------------------------------------
+
+fcc2011_subscription <- fread("~/git/rural_broadband/src/bipACS/fcc2011_subscription.csv",
+                              colClasses = c(GEOID="character"))
+fcc2016_subscription <- fread("~/git/rural_broadband/src/bipACS/fcc2016_subscription.csv",
+                              colClasses = c(GEOID="character"))
+
+tracts_us4 <- tracts_us3 %>% left_join(fcc2011_subscription, by="GEOID")
+tracts_us5 <- tracts_us4 %>% left_join(fcc2016_subscription, by="GEOID")
+
+# --------------------------------------------------------------------------------------------
+# attach 2011 provider counts
+# --------------------------------------------------------------------------------------------
+
+fcc2011_providers <- fread("~/git/rural_broadband/src/bipACS/fcc2011_providers.csv",
+                           colClasses = c(GEOID="character"))
+
+# total_residential_prov (200kbps), total_residential_prov_nbp (3Mbps)
+# note: skip provider counts for 2016 (hard to come up with a consistent
+#   tract-level definition from 2011 to 2016 with available data)
+# note: '1' is coded as 1 to 3
+tracts_us6 <- tracts_us5 %>% left_join(fcc2011_providers, by="GEOID")
+
+# --------------------------------------------------------------------------------------------
+# attach eligibility
+# --------------------------------------------------------------------------------------------
+
+# simple criterion for eligibility by tract:
+#   providers (3Mbps) in 2011 is < 3, and the tract is rural (RUCA >=4, non-metropolitan)
+#   see e.g. https://www.rd.usda.gov/programs-services/rural-broadband-access-loan-and-loan-guarantee
+
+# load eligible %area by tract from 04_bip_eligibility.R
+eligible_broadband <- tracts_us6$RUCA_2010 >=4 & tracts_us6$fcc2011_providers_3 <= 2
+table(eligible_broadband)
+
+eligible_infrastructure <- tracts_us6$RUCA_2010 >=4 & tracts_us6$fcc2011_providers_3 <= 1
+table(eligible_infrastructure)
+
+#tracts_us7$eligible_broadband <- tracts_us7$RUS_PROP_URBAN==0 & tracts_us7$fcc2011_providers_3 <= 2
+#tracts_us7$eligible_infrastructure <- tracts_us7$RUS_PROP_URBAN==0 & tracts_us7$fcc2011_providers_3 <= 1
+tracts_us7 <- tracts_us6
+
+tracts_us7$RUCA_RURAL <- 1*(tracts_us7$RUCA_2010 >= 7)
+tracts_us7$RUCA_URBAN <- 1*(tracts_us7$RUCA_2010 <= 6)
+tracts_us7 <- tracts_us7 %>% filter(!is.na(RUCA_2010))
+
+# --------------------------------------------------------------------------------------------
+# format and save final data
+# --------------------------------------------------------------------------------------------
+
+broadband_tract_data <- tracts_us7 %>% dplyr::select(
+  STATEFP,
+  COUNTYFP,
+  TRACTCE,
+  GEOID,
+  ALAND,
+  AWATER,
+  BIP_IN,
+  BIP_PROP_AREA,
+  BIP_PROP_5MI,
+  BIP_PROP_10MI,
+  BIP_PROP_25MI,
+  BIP_PROP_50MI,
+  RUCC_2013=RUCC_2013,
+  RUCA_2010=RUCA_2010,
+  RUCA_2010_SECONDARY=RUCA_2010_SECONDARY,
+  acs_within_fcc200,
+  acs_within_fcc10,
+  acs_within_fcc,
+  fcc2011_200min,
+  fcc2011_200max,
+  fcc2016_200min,
+  fcc2016_200max,
+  fcc2011_providers_200,
+  fcc2011_providers_3,
+  #eligible_broadband,
+  #eligible_infrastructure,
+  
+  population_2010,
+  hs_or_less_2010,
+  poverty_2010,
+  age_65_older_2010,
+  hispanic_2010,
+  black_2010,
+  foreign_2010,
+  median_income_2010,
+  median_value_2010,
+  median_income_adj_2010,
+  median_value_adj_2010,
+
+  population_2013,
+  hs_or_less_2013,
+  poverty_2013,
+  age_65_older_2013,
+  hispanic_2013,
+  black_2013,
+  family_2013,
+  foreign_2013,
+  unemployment_2013,
+  median_income_2013,
+  median_value_2013,
+  median_income_adj_2013,
+  median_value_adj_2013,
+  
+  population_2015,
+  hs_or_less_2015,
+  poverty_2015,
+  age_65_older_2015,
+  hispanic_2015,
+  black_2015,
+  family_2015,
+  foreign_2015,
+  unemployment_2015,
+  median_income_2015,
+  median_value_2015,
+  median_income_adj_2015,
+  median_value_adj_2015,
+  
+  population_2018,
+  hs_or_less_2018,
+  poverty_2018,
+  age_65_older_2018,
+  hispanic_2018,
+  black_2018,
+  family_2018,
+  foreign_2018,
+  unemployment_2018,
+  median_income_2018,
+  median_value_2018
 )
 
-acs_2015_summaries <- rbind(
-  computeACSsummary2015(df=tracts_us2, source="National",
-                        weights=tracts_us2$population_2015,
-                        weights_hh=tracts_us2$hunits_total_2015
-  ),
-  computeACSsummary2015(df=tracts_us2, source="BIP Regions",
-                        weights=tracts_us2$population_2015 *(tracts_us2$BIP_PROP_AREA),
-                        weights_hh=tracts_us2$hunits_total_2015*(tracts_us2$BIP_PROP_AREA)
-  ),
-  computeACSsummary2015(df=tracts_us2, source="BIP Within 5MI",
-                        weights=tracts_us2$population_2015 *(tracts_us2$BIP_PROP_5MI),
-                        weights_hh=tracts_us2$hunits_total_2015*(tracts_us2$BIP_PROP_5MI)
-  ),
-  computeACSsummary2015(df=tracts_us2, source="BIP Within 10MI",
-                        weights=tracts_us2$population_2015 *(tracts_us2$BIP_PROP_10MI),
-                        weights_hh=tracts_us2$hunits_total_2015*(tracts_us2$BIP_PROP_10MI)
-  ),
-  computeACSsummary2015(df=tracts_us2, source="BIP Within 25MI",
-                        weights=tracts_us2$population_2015 *(tracts_us2$BIP_PROP_25MI),
-                        weights_hh=tracts_us2$hunits_total_2015*(tracts_us2$BIP_PROP_25MI)
-  ),
-  computeACSsummary2015(df=tracts_us2, source="BIP Within 50MI",
-                        weights=tracts_us2$population_2015 *(tracts_us2$BIP_PROP_50MI),
-                        weights_hh=tracts_us2$hunits_total_2015*(tracts_us2$BIP_PROP_50MI)
-  ),
-  computeACSsummary2015(df=tracts_us2, source="Rural (RUCC 7-9)",
-                        weights=tracts_us2$population_2015 *(tracts_us2$RUCC_2013 >= 7),
-                        weights_hh=tracts_us2$hunits_total_2015*(tracts_us2$RUCC_2013 >= 7)
-  ),
-  computeACSsummary2015(df=tracts_us2, source="Rural (RUCA 7-10)",
-                        weights=tracts_us2$population_2015 *(tracts_us2$RUCA_2010 >= 7),
-                        weights_hh=tracts_us2$hunits_total_2015*(tracts_us2$RUCA_2010 >= 7)
-  ),
-  computeACSsummary2015(df=tracts_us2, source="Urban (RUCC 1-6)",
-                        weights=tracts_us2$population_2015 *(tracts_us2$RUCC_2013 <= 6),
-                        weights_hh=tracts_us2$hunits_total_2015*(tracts_us2$RUCC_2013 <= 6)
-  ),
-  computeACSsummary2015(df=tracts_us2, source="Urban (RUCA 1-6)",
-                        weights=tracts_us2$population_2015 *(tracts_us2$RUCA_2010 <= 6),
-                        weights_hh=tracts_us2$hunits_total_2015*(tracts_us2$RUCA_2010 <= 6)
-  )
-)
+fwrite(broadband_tract_data, file="broadband_tract_data.csv")
 
-acs_2010_summaries[,2:ncol(acs_2010_summaries)] <- signif(acs_2010_summaries[,2:ncol(acs_2010_summaries)],3)
-acs_2015_summaries[,2:ncol(acs_2015_summaries)] <- signif(acs_2015_summaries[,2:ncol(acs_2015_summaries)],3)
+# save.image("~/git/rural_broadband/src/bipACS/bip_acs.RData")
 
-tracts_us3 <- tracts_us2
-tracts_us3[,11:ncol(tracts_us3)] <- round(tracts_us3[,11:ncol(tracts_us3)],3)
-tracts_us3 <- tracts_us3[,c(1:30,59:71)] %>% select(-c("NAME","GEOID5","LSAD","AFFGEOID"))
+# --------------------------------------------------------------------------------------------
+# check completeness
+# --------------------------------------------------------------------------------------------
 
-fwrite(acs_2010_summaries,file="~/git/rural_broadband/src/BIPsummaries/acs_2010_summaries.csv")
-fwrite(acs_2015_summaries,file="~/git/rural_broadband/src/BIPsummaries/acs_2015_summaries.csv")
-fwrite(tracts_us3,file="~/git/rural_broadband/src/BIPsummaries/ACS_tracts.csv")
+sort( colSums(is.na(broadband_tract_data)) )
 
-# save.image("~/git/rural_broadband/src/BIPsummaries/bip_acs.RData")
+# --------------------------------------------------------------------------------------------
+# save summary tables
+# --------------------------------------------------------------------------------------------
+
+# save each variable as a separate .csv under summary/varname.csv
+# column = ACS year, row = subpopulation
+
+# general formula is:
+# as.numeric(df %>% filter(!is.na(varname)) %>% summarize(varname=sum(weights*varname)/sum(weights)))
+
+sumcompute <- function(df, varname, weights){
+  # weights is a character vector of columns to multiply
+  df_filter <- df[ !is.na(df[,varname]), ]
+  for(i in 1:length(weights)){
+    if(i==1) {
+      w <- df_filter[,weights[1]]
+    } else{
+      w <- w*df_filter[,weights[i]]
+    }
+  }
+  var <- df_filter[,varname]
+  return( sum(w*var)/sum(w) )
+}
+#sumcompute(df = tracts_us7, varname = 'unemployment_2013', weights = 'population_2013')
+
+# function to take varname as input and call sumcompute for all years, subpopulation
+sumyear <- function(varname, year, type){
+  if(type == "person") weightname <- 'population_'
+  if(type == "household") weightname <- 'hunits_total_'
+  return(c(
+    sumcompute(tracts_us7, paste0(varname,"_",year), weights = paste0(weightname,year)),
+    sumcompute(tracts_us7, paste0(varname,"_",year), weights = c('BIP_PROP_AREA',paste0(weightname,year))),
+    sumcompute(tracts_us7, paste0(varname,"_",year), weights = c('BIP_PROP_5MI',paste0(weightname,year))),
+    sumcompute(tracts_us7, paste0(varname,"_",year), weights = c('BIP_PROP_10MI',paste0(weightname,year))),
+    sumcompute(tracts_us7, paste0(varname,"_",year), weights = c('BIP_PROP_25MI',paste0(weightname,year))),
+    sumcompute(tracts_us7, paste0(varname,"_",year), weights = c('BIP_PROP_50MI',paste0(weightname,year))),
+    sumcompute(tracts_us7, paste0(varname,"_",year), weights = c('RUCA_RURAL',paste0(weightname,year))),
+    sumcompute(tracts_us7, paste0(varname,"_",year), weights = c('RUCA_URBAN',paste0(weightname,year)))
+  ))
+}
+
+# format and write as .csv
+sumtable <- function(varname, type){
+  df <- data.frame(source = c("National", "BIP Regions", "BIP 5MI Donut", "BIP 10MI Donut",
+                   "BIP 25MI Donut", "BIP 50MI Donut", "Rural (RUCA 7-10)", "Urban (RUCA 1-6)"))
+  
+  if(varname %in% c('unemployment','family')){
+    df$ACS2010 <- NA
+  } else{ df$ACS_2010 = signif( sumyear(varname, '2010', type), 3 ) }
+  df$ACS_2013 = signif( sumyear(varname, '2013', type), 3 )
+  df$ACS_2015 = signif( sumyear(varname, '2015', type), 3 )
+  df$ACS_2018 = signif( sumyear(varname, '2018', type), 3 )
+  names(df) <- c("","2006-2010 ACS", "2009-2013 ACS", "2011-2015 ACS", "2014-2018 ACS")
+  return(df)
+}
+
+fwrite( sumtable('hs_or_less','person'), file='summary/hs_or_less.csv' )
+fwrite( sumtable('poverty','person'), file='summary/poverty.csv' )
+fwrite( sumtable('age_65_older','person'), file='summary/age_65_older.csv' )
+fwrite( sumtable('hispanic','person'), file='summary/hispanic.csv' )
+fwrite( sumtable('black','person'), file='summary/black.csv' )
+fwrite( sumtable('foreign','person'), file='summary/foreign.csv' )
+fwrite( sumtable('unemployment','person'), file='summary/unemployment.csv' )
+# NOTES: for family, income, value use housing weights instead of person-weights
+fwrite( sumtable('family','household'), file='summary/family.csv' )
+fwrite( sumtable('median_income_adj','household'), file='summary/median_income.csv' )
+fwrite( sumtable('median_value_adj','household'), file='summary/median_value.csv' )
+
+
