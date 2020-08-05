@@ -46,8 +46,9 @@ Rurality files - 2017 urban areas and census designated places
 
 ```{r}
 ## FCC
-fcc_2017 <- read.csv("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fbd_us_without_satellite_dec2017_v2.csv")
-saveRDS(fcc_2017, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fbd_us_without_satellite_dec2017_v2.RDS")
+# fcc_2017 <- read.csv("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fbd_us_without_satellite_dec2017_v2.csv")
+# saveRDS(fcc_2017, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fbd_us_without_satellite_dec2017_v2.RDS")
+fcc_2017 <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fbd_us_without_satellite_dec2017_v2.RDS")
 
 ## RURALITY 
 path <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_2017_urbanareas_places/"
@@ -57,40 +58,54 @@ rurality_files <- rurality_files[1:56]
 rurality_files <- paste0(path, rurality_files)
 data_l <- as.list(rurality_files)
 shps <- lapply(data_l, function(x) readRDS(x))
-shps_c <- lapply(shps, function(x) st_combine(x))
+shps_e <- do.call(rbind, shps)
 
-plot(shps_c[[1]])
+## CENSUS
+# load("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_tracts.RData")
+# census_tracts <- st_as_sf(census_tracts)
 
-testA <- head(shps[[1]])
-
-plot(testA$geometry)
-plot(st_union(testA$geometry))
-plot(st_combine(testA$geometry))
-
-# a <- 5:6
-# plot(testA$geometry[a])
-# plot(st_union(testA$geometry[a]))
-# plot(st_combine(testA$geometry[a]))
-
-st_union(testA$geometry)
-st_combine(testA$geometry)
-
-
-
-testB <- head(shps[[2]])
-
-mapedit:::combine_list_of_sf(nc_list_1k)
-
-do.call(what = sf:::rbind.sf, args = nc_list_1k),
-+                purrr::reduce(.x = nc_list_1k,
-+                              .f = sf:::rbind.sf), 
-+                sf::st_as_sf(data.table::rbindlist(nc_list_1k)),
-+                times = 25L)
-
-
+### clean environment
+rm(rurality_files, urbanareas2017, data_l, shps)
 ```
 
 
+```{r}
+fcc_2017 <- fcc_2017  %>% mutate(speed_elig_down = ifelse(MaxAdDown > 10, 0, 1),
+                                  speed_elig_up = ifelse(MaxAdUp > 1, 0, 1),
+                                  speed_elig = ifelse(speed_elig_down + speed_elig_up == 2, 1, 0))
+fips  <- tigris::fips_codes 
+fips_ <- fips %>% select(state, state_code) %>% distinct()
+
+fcc_2017_ <- head(fcc_2017)
+fcc_2017_VA <- fcc_2017 %>% filter(StateAbbr == "VA")
+
+va_blocks_2018 <- readRDS("/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS/tl_2018_51_tabblock10.RDS")
+va_blocks_2018 <- va_blocks_2018 %>% mutate(FULL_GEOID = paste0(STATEFP10, COUNTYFP10, TRACTCE10, BLOCKCE10))
+fcc_2017_VA$BlockCode <- as.character(fcc_2017_VA$BlockCode)
+
+fcc_2017_VA <- va_blocks_2018 %>% inner_join(fcc_2017_VA, by = c("FULL_GEOID" = "BlockCode")) 
+# test_fcc <- fcc_2017_VA %>% filter(speed_elig == 2)
+# plot(test_fcc$geometry)
+
+head(fcc_2017_VA$BlockCode)
+"510330301001048"
+va_blocks_2018 
+
+library(leaflet)
+
+pal <- colorNumeric(
+  palette = "Blues",
+  domain = fcc_2017_VA$speed_elig)
+
+leaflet(fcc_2017_VA) %>% 
+  addTiles() %>%
+  addPolygons()
+
+```
+
+```{r}
+
+```
 
 
 
