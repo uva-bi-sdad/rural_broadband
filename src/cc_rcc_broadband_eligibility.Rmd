@@ -61,8 +61,6 @@ shps <- lapply(data_l, function(x) readRDS(x))
 shps_e <- do.call(rbind, shps)
 
 ## CENSUS
-# load("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_tracts.RData")
-# census_tracts <- st_as_sf(census_tracts)
 
 ### clean environment
 rm(rurality_files, urbanareas2017, data_l, shps)
@@ -76,7 +74,6 @@ fcc_2017 <- fcc_2017  %>% mutate(speed_elig_down = ifelse(MaxAdDown > 10, 0, 1),
 fips  <- tigris::fips_codes 
 fips_ <- fips %>% select(state, state_code) %>% distinct()
 
-fcc_2017_ <- head(fcc_2017)
 fcc_2017_VA <- fcc_2017 %>% filter(StateAbbr == "VA")
 
 va_blocks_2018 <- readRDS("/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS/tl_2018_51_tabblock10.RDS")
@@ -87,27 +84,37 @@ fcc_2017_VA <- va_blocks_2018 %>% inner_join(fcc_2017_VA, by = c("FULL_GEOID" = 
 # test_fcc <- fcc_2017_VA %>% filter(speed_elig == 2)
 # plot(test_fcc$geometry)
 
-head(fcc_2017_VA$BlockCode)
-"510330301001048"
-va_blocks_2018 
+# plot_elig <- fcc_2017_VA %>% filter(speed_elig == 1)
+# plot_elig <- plot_elig %>% st_transform(st_crs(4326))
 
-library(leaflet)
 
-pal <- colorNumeric(
-  palette = "Blues",
-  domain = fcc_2017_VA$speed_elig)
-
-leaflet(fcc_2017_VA) %>% 
-  addTiles() %>%
-  addPolygons()
 
 ```
 
 ```{r}
+rurality_va <- shps_e %>% filter(STATEFP == "51")
+plot(rurality_va$geometry)
+
+library(leaflet)
+
+leaflet(rurality_va) %>% 
+  addTiles() %>%
+  addPolygons(stroke = 0, fillOpacity = .5, color = "#32a852") 
 
 ```
 
 
+```{r}
+test_va_fcc <- fcc_2017_VA %>% filter(stringr::str_detect(TRACTCE10, "430"))
+
+test_intersection <- st_intersection(test_va_fcc, rurality_va)  %>% 
+  mutate(geo =st_geometry_type(geometry)) %>% 
+  filter(stringr::str_detect(geo, "POLYG"))
+
+leaflet(test_intersection) %>%
+  addTiles() %>% 
+  addPolygons()
+```
 
 
 
