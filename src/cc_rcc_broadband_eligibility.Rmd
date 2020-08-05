@@ -1,0 +1,101 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(dplyr)
+library(sf)
+
+# setwd("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/")
+
+```
+
+```{r download_save_data, eval = FALSE}
+urbanareas2017 <- tigris::urban_areas(year = "2017")
+fips  <- tigris::fips_codes 
+fips %>% filter(state_code == 74)
+
+rm(i)
+for (i in 57:nrow(fips_codes)) {
+  print(i)
+  # print(fips_codes[i,1])
+  print(fips_codes[i,2])
+  censusplaces2017_ <- tigris::places(state = fips_codes[i,1], year = "2017")
+  name <- paste0("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_2017_urbanareas_places/census_2017_places_", fips_codes[i,1], ".RDS")
+  saveRDS(censusplaces2017_, file = name)
+  print(name)
+}
+
+# saveRDS(censusplaces2017_, paste0("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_2017_urbanareas_places/census_2017_places_", fips_codes[1,1], ".RDS"))
+
+# saveRDS(urbanareas2017, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_2017_urbanareas.RDS")
+
+```
+
+Note: FCC Data is from https://www.fcc.gov/form-477-broadband-deployment-data-december-2017-version-2
+Pulled: US - Fixed without Satellite - Dec 17v2 (CSV)
+
+Rurality files - 2017 urban areas and census designated places
+
+
+```{r}
+## FCC
+fcc_2017 <- read.csv("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fbd_us_without_satellite_dec2017_v2.csv")
+saveRDS(fcc_2017, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fbd_us_without_satellite_dec2017_v2.RDS")
+
+## RURALITY 
+path <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_2017_urbanareas_places/"
+rurality_files <- list.files(path)
+urbanareas2017 <- readRDS(paste0(path, rurality_files[57]))
+rurality_files <- rurality_files[1:56]
+rurality_files <- paste0(path, rurality_files)
+data_l <- as.list(rurality_files)
+shps <- lapply(data_l, function(x) readRDS(x))
+shps_c <- lapply(shps, function(x) st_combine(x))
+
+plot(shps_c[[1]])
+
+testA <- head(shps[[1]])
+
+plot(testA$geometry)
+plot(st_union(testA$geometry))
+plot(st_combine(testA$geometry))
+
+# a <- 5:6
+# plot(testA$geometry[a])
+# plot(st_union(testA$geometry[a]))
+# plot(st_combine(testA$geometry[a]))
+
+st_union(testA$geometry)
+st_combine(testA$geometry)
+
+
+
+testB <- head(shps[[2]])
+
+mapedit:::combine_list_of_sf(nc_list_1k)
+
+do.call(what = sf:::rbind.sf, args = nc_list_1k),
++                purrr::reduce(.x = nc_list_1k,
++                              .f = sf:::rbind.sf), 
++                sf::st_as_sf(data.table::rbindlist(nc_list_1k)),
++                times = 25L)
+
+
+```
+
+
+
+
+
+
+
+
+
+
