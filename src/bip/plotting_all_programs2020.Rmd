@@ -1,0 +1,407 @@
+---
+title: "plotting_all_programs"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(leaflet)
+library(sf)
+library(dplyr)
+```
+
+```{r}
+project_folder <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/"
+new_bip_approved_sf <- sf::st_read(paste0(project_folder, "RUS_BIP_Shapefiles_April2020/200409_BIP_ServAr_ID.shp"))
+new_cc_approved_sf <- sf::st_read(paste0(project_folder, "RUS_CC_Shapefiles_April2020/CC 2013_2019_83 04272020.shp"))
+new_rc_approved_sf <- sf::st_read(paste0(project_folder, "RUS_RC_Shapefiles_April2020/ReConnect R1 594 PFSA 05012020.shp"))
+new_tc_farm_sf <- sf::st_read(paste0(project_folder, "RUS_TC_Shapefiles_June2020/USDARD_RUS_TELCO_FARMBILL_06042020/USDARD_RUS_TELCO_FARMBILL_06042020.shp"))
+new_tc_infra_sf <- sf::st_read(paste0(project_folder, "RUS_TC_Shapefiles_June2020/USDARD_RUS_TELCO_INFRA_06042020/USDARD_RUS_TELCO_INFRA_06042020.shp"))
+```
+
+```{r message  = F}
+prot_borr_april19 <- sf::st_read(paste0(project_folder, "rus_broadband_servicearea/ProtectedBorrowers04222019.shp"))
+prot_borr_july19 <- sf::st_read(paste0(project_folder, "rus_broadband_servicearea/USDARD_ProtectedBorrowers_July2019/USDARD_ProtectedBorrowers.shp"))
+```
+
+
+```{r BIP_data_1, include=FALSE, eval = FALSE}
+#"/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/BIP_working/BIP_Approved.RDS"
+project_folder <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/"
+
+# new_bip_approved_dbf <- foreign::read.dbf(paste0(project_folder, "RUS_BIP_Shapefiles_April2020/200409_BIP_ServAr_ID.dbf"))
+new_bip_approved_sf <- sf::st_read(paste0(project_folder, "RUS_BIP_Shapefiles_April2020/200409_BIP_ServAr_ID.shp"))
+# new_masterfile <- readxl::read_excel(paste0(project_folder, "RUS_BIP_Shapefiles_April2020/200409_LinktoShapefile.xlsx"), sheet = 2)
+
+# old_master_file <- read.csv(paste0(paste0(project_folder, "rus_broadband_servicearea/RUS_programs.csv")))
+```
+
+```{r BIP_data_2, eval = FALSE}
+# join_new <- new_bip_approved_sf %>% left_join(new_masterfile, by = c("ProjectID", "RUS_ID" = "RUSID"))
+# join_new_df <- new_bip_approved_dbf %>% left_join(new_masterfile, by = c("ProjectID", "RUS_ID" = "RUSID"))
+new_masterfile_bip <- new_masterfile %>% filter(ProgramID == "BIP")
+join_new <- new_bip_approved_sf %>% left_join(new_masterfile_bip, by = c("ProjectID", "RUS_ID" = "RUSID"))
+join_new_df <- new_bip_approved_dbf %>% left_join(new_masterfile_bip, by = c("ProjectID", "RUS_ID" = "RUSID"))
+```
+
+```{r Comm_Conn_data_1, include=FALSE, eval = FALSE}
+#"/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/BIP_working/BIP_Approved.RDS"
+# project_folder <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/"
+
+# new_cc_approved_dbf <- foreign::read.dbf(paste0(project_folder, "RUS_CC_Shapefiles_April2020/CC 2013_2019_83 04272020.dbf"))
+new_cc_approved_sf <- sf::st_read(paste0(project_folder, "RUS_CC_Shapefiles_April2020/CC 2013_2019_83 04272020.shp"))
+# new_masterfile <- readxl::read_excel(paste0(project_folder, "RUS_CC_Shapefiles_April2020/CC_2013_2019_83_04272020.xlsx"), sheet = 1, skip = 1)
+
+# old_master_file <- read.csv(paste0(paste0(project_folder, "rus_broadband_servicearea/RUS_programs.csv")))
+```
+
+
+```{r Comm_Conn_data_2, eval = FALSE}
+# join_new <- new_bip_approved_sf %>% left_join(new_masterfile, by = c("ProjectID", "RUS_ID" = "RUSID"))
+# join_new_df <- new_bip_approved_dbf %>% left_join(new_masterfile, by = c("ProjectID", "RUS_ID" = "RUSID"))
+new_cc_approved_dbf$POP <-as.numeric(new_cc_approved_dbf$POP)
+new_cc_approved_dbf$HOUSUNIT <- as.numeric(new_cc_approved_dbf$HOUSUNIT)
+new_cc_approved_dbf$HHS <- as.numeric(new_cc_approved_dbf$HHS)
+new_cc_approved_dbf$PROJSUBS <- as.numeric(new_cc_approved_dbf$PROJSUBS)
+
+new_cc_approved_sf$POP <-as.numeric(new_cc_approved_sf$POP)
+new_cc_approved_sf$HOUSUNIT <- as.numeric(new_cc_approved_sf$HOUSUNIT)
+new_cc_approved_sf$HHS <- as.numeric(new_cc_approved_sf$HHS)
+new_cc_approved_sf$PROJSUBS <- as.numeric(new_cc_approved_sf$PROJSUBS)
+
+join_new <- new_cc_approved_sf %>% left_join(new_masterfile, by = c("RUSID", "OBJECTID", "REFNUM", "PROGRAMTYP", "COMPANY", "PRIMBORRID", "PERSPOV", "STATUS", "APPFY", "OBLFY", "POP", "HOUSUNIT", "HHS", "SQUAREM", "PROJSUBS", "STATE", "COUNTY", "FIPS","NETOBL"))
+join_new_df <- new_cc_approved_dbf %>% left_join(new_masterfile, by = c("RUSID", "OBJECTID", "REFNUM", "PROGRAMTYP", "COMPANY", "PRIMBORRID", "PERSPOV", "STATUS", "APPFY", "OBLFY", "POP", "HOUSUNIT", "HHS", "SQUAREM", "PROJSUBS", "STATE", "COUNTY", "FIPS","NETOBL"))
+```
+
+
+```{r Reconn_data_1, include=FALSE, eval = FALSE}
+#"/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/BIP_working/BIP_Approved.RDS"
+# project_folder <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/"
+
+# new_rc_approved_dbf <- foreign::read.dbf(paste0(project_folder, "RUS_RC_Shapefiles_April2020/ReConnect R1 594 PFSA 05012020.dbf"))
+new_rc_approved_sf <- sf::st_read(paste0(project_folder, "RUS_RC_Shapefiles_April2020/ReConnect R1 594 PFSA 05012020.shp"))
+# new_masterfile <- readxl::read_excel(paste0(project_folder, "RUS_RC_Shapefiles_April2020/200429_ReConnect.xlsx"), sheet = 1)
+
+# old_master_file <- read.csv(paste0(paste0(project_folder, "rus_broadband_servicearea/RUS_programs.csv")))
+```
+
+```{r Reconn_data_2, eval = FALSE}
+join_new <- new_rc_approved_sf %>% left_join(new_masterfile, by = c("RUS_ID" = "ProjectID"))
+join_new_df <- new_rc_approved_dbf %>% left_join(new_masterfile, by = c("RUS_ID" = "ProjectID"))
+
+```
+
+```{r Telecom_data_1, include=FALSE, eval = FALSE}
+#"/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/BIP_working/BIP_Approved.RDS"
+# project_folder <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/"
+
+# new_tc_farm_dbf <- foreign::read.dbf(paste0(project_folder, "RUS_TC_Shapefiles_June2020/USDARD_RUS_TELCO_FARMBILL_06042020/USDARD_RUS_TELCO_FARMBILL_06042020.dbf"))
+new_tc_farm_sf <- sf::st_read(paste0(project_folder, "RUS_TC_Shapefiles_June2020/USDARD_RUS_TELCO_FARMBILL_06042020/USDARD_RUS_TELCO_FARMBILL_06042020.shp"))
+
+# new_tc_infra_dbf <- foreign::read.dbf(paste0(project_folder, "RUS_TC_Shapefiles_June2020/USDARD_RUS_TELCO_INFRA_06042020/USDARD_RUS_TELCO_INFRA_06042020.dbf"))
+new_tc_infra_sf <- sf::st_read(paste0(project_folder, "RUS_TC_Shapefiles_June2020/USDARD_RUS_TELCO_INFRA_06042020/USDARD_RUS_TELCO_INFRA_06042020.shp"))
+
+# missing <- readxl::read_excel(paste0(project_folder, "RUS_TC_Shapefiles_June2020/Missing Farm Bill and Infra Records as of 05052020.xlsx"))
+```
+
+```{r eval = F}
+new_bip_approved_sf
+new_cc_approved_sf
+new_rc_approved_sf
+new_tc_farm_sf
+new_tc_infra_sf
+
+prot_borr_april19
+```
+
+```{r}
+new_bip_approved_sf_transform <- new_bip_approved_sf %>% st_transform("+init=epsg:4326")
+new_cc_approved_sf_transform <- new_cc_approved_sf %>% st_transform("+init=epsg:4326")
+new_rc_approved_sf_transform <- new_rc_approved_sf %>% st_transform("+init=epsg:4326")
+new_tc_farm_sf_transform <- new_tc_farm_sf %>% st_transform("+init=epsg:4326")
+new_tc_infra_sf_transform <- new_tc_infra_sf %>% st_transform("+init=epsg:4326")
+prot_borr_april19_transform <- prot_borr_april19 %>% st_transform("+init=epsg:4326")
+prot_borr_july19_transform <- prot_borr_july19 %>% st_transform("+init=epsg:4326")
+
+```
+
+
+```{r}
+pal <- c("#7fc97f", "#beaed4", "#386cb0", "#f0027f", "#bf5b17")
+```
+
+##### 2020 BIP File
+
+```{r}
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = new_bip_approved_sf_transform , color = pal[1], weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    # fillColor = ~colorQuantile("YlOrRd", `Original Obligation`)(`Original Obligation`),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE) )
+```
+
+##### 2020 CC File
+
+```{r}
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = new_cc_approved_sf_transform , color = pal[2], weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    # fillColor = ~colorQuantile("YlOrRd", `Original Obligation`)(`Original Obligation`),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE) )
+```
+
+##### 2020 RC File
+
+```{r}
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = new_rc_approved_sf_transform , color = pal[3], weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    # fillColor = ~colorQuantile("YlOrRd", `Original Obligation`)(`Original Obligation`),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE) )
+```
+
+##### 2020 FBB File
+
+```{r}
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = new_tc_farm_sf_transform , color = pal[4], weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    # fillColor = ~colorQuantile("YlOrRd", `Original Obligation`)(`Original Obligation`),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE) )
+```
+
+##### 2020 TCIL File
+
+```{r}
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = new_tc_infra_sf_transform , color = pal[5], weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    # fillColor = ~colorQuantile("YlOrRd", `Original Obligation`)(`Original Obligation`),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE) )
+```
+
+
+
+```{r}
+
+# new_bip_approved_sf_transform <- st_combine(new_bip_approved_sf_transform)
+# new_cc_approved_sf_transform <- st_combine(new_cc_approved_sf_transform)
+# new_rc_approved_sf_transform <- st_combine(new_rc_approved_sf_transform)
+# new_tc_farm_sf_transform <- st_combine(new_tc_farm_sf_transform)
+# new_tc_infra_sf_transform <- st_combine(new_tc_infra_sf_transform)
+
+```
+
+##### 2020 Program Files 
+
+BIP vs. Non-BIP Programs by individual program
+
+```{r}
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = new_bip_approved_sf_transform, color = pal[1], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>% 
+  addPolygons(data = new_cc_approved_sf_transform, color = pal[2], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>% 
+  addPolygons(data = new_rc_approved_sf_transform, color = pal[3], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>% 
+  addPolygons(data = new_tc_farm_sf_transform, color = pal[4], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>% 
+  addPolygons(data = new_tc_infra_sf_transform , color = pal[5], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>%
+  addLegend("bottomright", colors = pal, labels =  c("BIP", "CC", "RC", "FBB", "TCIL"))
+
+```
+
+BIP vs. Non-BIP Programs (any non-BIP in purple)
+
+```{r}
+
+cc_shapes <-  new_cc_approved_sf_transform %>% select(geometry) %>% mutate(PROGRAM = "CC")
+rc_shapes <- new_rc_approved_sf_transform %>% select(geometry) %>% mutate(PROGRAM = "RC")
+fbb_shapes <- new_tc_farm_sf_transform %>% select(geometry) %>% mutate(PROGRAM = "FBB")
+tcil_shapes <- new_tc_infra_sf_transform %>% select(geometry) %>% mutate(PROGRAM = "TCIL")
+non_bip_shapes <- do.call(rbind, list(cc_shapes, rc_shapes, fbb_shapes, tcil_shapes))
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = non_bip_shapes, color = pal[2], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>%
+  addPolygons(data = new_bip_approved_sf_transform, color = pal[1], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5)
+```
+
+```{r eval = F}
+new_bip_approved_sf_transform_ <- st_buffer(new_bip_approved_sf_transform, 0)
+non_bip_shapes_ <- st_buffer(non_bip_shapes, 0)
+
+test_intersect_bip_all <- st_intersection(new_bip_approved_sf_transform_, non_bip_shapes_)  
+test_outersect_bip <- st_difference(new_bip_approved_sf_transform_, non_bip_shapes_)
+test_outersect_all <- st_difference(non_bip_shapes_, new_bip_approved_sf_transform_)
+
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = test_intersect_bip_all, color = pal[3], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>%
+  addPolygons(data = test_outersect_bip, color = pal[1], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>%
+  addPolygons(data = test_outersect_all, color = pal[2], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>%
+  addLegend(colors = pal[1:3], labels = c("BIP + Other", "BIP", "Other"))
+
+```
+
+
+```{r eval = F}
+new_bip_approved_sf_transform <- st_buffer(new_bip_approved_sf_transform, 0)
+new_cc_approved_sf_transform <- st_buffer(new_cc_approved_sf_transform, 0)
+new_rc_approved_sf_transform <- st_buffer(new_rc_approved_sf_transform, 0)
+new_tc_farm_sf_transform <- st_buffer(new_tc_farm_sf_transform, 0 )
+new_tc_infra_sf_transform <- st_buffer(new_tc_infra_sf_transform, 0)
+
+test_intersect_cc_rc <- st_intersection(new_cc_approved_sf_transform, new_rc_approved_sf_transform)  
+test_outersect_cc <- st_difference(new_cc_approved_sf_transform, new_rc_approved_sf_transform)
+test_outersect_rc <- st_difference(new_rc_approved_sf_transform, new_cc_approved_sf_transform)
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = test_intersect_cc_rc, color = pal[1], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>% 
+  addPolygons(data = test_outersect_cc, color = pal[2], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>%
+  addPolygons(data = test_outersect_rc, color = pal[3], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>%
+  addLegend(colors = pal[1:3], labels = c("CC+RC", "CC", "RC"))
+
+intersect_ccrc_fbb <- st_intersection(test_intersect_cc_rc, new_tc_farm_sf_transform)
+outersect_ccrc_fbb <- st_difference(test_intersect_cc_rc, new_tc_farm_sf_transform)
+outersect_fbb_ccrc <- st_difference(new_tc_farm_sf_transform, test_intersect_cc_rc)
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = test_intersect_cc_rc, color = pal[1], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>% 
+  addPolygons(data = test_outersect_cc, color = pal[2], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>%
+  addPolygons(data = test_outersect_rc, color = pal[3], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>%
+  addLegend(colors = pal[1:3], labels = c("CC+RC", "CC", "RC"))
+
+```
+
+
+##### April 2019 Prot Borr File
+
+Prot Borr - all shapes
+
+```{r}
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = prot_borr_april19_transform , color = "#000000", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    # fillColor = ~factpal(PROG),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE) )
+
+```
+
+Prot Borr - all shapes broken out by combinations of programs
+
+```{r}
+prot_borr_april19_transform <- prot_borr_april19_transform %>% mutate(PROG = stringr::str_squish(stringr::str_remove_all(paste0(INF, " ", BB, " ", BIPLOAN, " ", BIPGRANT, " ", CCGRANT), pattern = "NA")))
+
+factpal <- colorFactor(topo.colors(20), prot_borr_april19_transform$PROG)
+
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = prot_borr_april19_transform , color = "#000000", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    fillColor = ~factpal(PROG),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE) ) %>%
+  addLegend("bottomright", pal = factpal, values = prot_borr_april19_transform$PROG)
+
+```
+
+Prot Borr (yellow) vs 2020 Program Files (BIP-green & Non-BIP-purple)
+
+```{r}
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+    addPolygons(data = prot_borr_april19_transform, color = "#ffe08c", weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>%
+  addPolygons(data = non_bip_shapes, color = pal[2], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>%
+  addPolygons(data = new_bip_approved_sf_transform, color = pal[1], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) 
+```
+
+Prot Borr (yellow) vs 2020 Program Files (BIP-green & Non-BIP-purple) - same map but yellow layer added last so you can see it a different way
+
+```{r}
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = non_bip_shapes, color = pal[2], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>%
+  addPolygons(data = new_bip_approved_sf_transform, color = pal[1], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>%
+  addPolygons(data = prot_borr_april19_transform, color = "#ffe08c", weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5)
+```
+
+
+
+```{r}
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = new_tc_infra_sf_transform , color = pal[5], weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    # fillColor = ~colorQuantile("YlOrRd", `Original Obligation`)(`Original Obligation`),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE) ) %>% 
+  addPolygons(data = prot_borr_april19_transform, color = "#ffe08c", weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5)  
+
+```
+
+
+```{r}
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+    addPolygons(data = prot_borr_april19_transform, color = "#ffe08c", weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5)  %>% 
+  addPolygons(data = new_tc_infra_sf_transform , color = pal[5], weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    # fillColor = ~colorQuantile("YlOrRd", `Original Obligation`)(`Original Obligation`),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE) ) 
+```
+
+
+##### Protected Borrowers *July 2019*
+
+```{r}
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = prot_borr_july19_transform , color = "#000000", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    # fillColor = ~factpal(PROG),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE) )
+```
+
+
+Prot Borr (yellow) vs 2020 Program Files (BIP-green & Non-BIP-purple)
+
+```{r}
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+    addPolygons(data = prot_borr_july19_transform, color = "#ffe08c", weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>%
+  addPolygons(data = non_bip_shapes, color = pal[2], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>%
+  addPolygons(data = new_bip_approved_sf_transform, color = pal[1], weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) 
+
+```
+
+```{r}
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+    addPolygons(data = prot_borr_april19_transform, color = "#ffe08c", weight = 1, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.5) %>%
+addPolygons(data = prot_borr_july19_transform , color = "#000000", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    # fillColor = ~factpal(PROG),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE) )
+
+
+```
+

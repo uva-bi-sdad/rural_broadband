@@ -1,0 +1,384 @@
+---
+title: "Profiling RC 2020 Dataset"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<style>
+  .col2 {
+    columns: 2 200px;         /* number of columns and width in pixels*/
+    -webkit-columns: 2 200px; /* chrome, safari */
+    -moz-columns: 2 200px;    /* firefox */
+  }
+  .col3 {
+    columns: 3 100px;
+    -webkit-columns: 3 100px;
+    -moz-columns: 3 100px;
+  }
+</style>
+
+
+```{r libraries, include=FALSE, message=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, error = FALSE, warning = FALSE)
+# install.packages("dplyr")
+library(dplyr)
+library(ggplot2)
+library(purrr)
+library(sf)  
+library(venn)
+library(ggthemes)
+```
+
+```{r functions}
+
+check_calc <- function(vec) {
+  blanks <- 0L
+  true_na <- 0L
+  written_na <- 0L
+  len <- length(x = vec)
+  for (elem in vec) {
+    if (is.na(x = elem)) {
+      true_na <- true_na + 1L
+    } else if (elem == "na") {
+      written_na <- written_na + 1L
+    } else if (elem == "") {
+      blanks <- blanks + 1L
+    }
+  }
+  percent_complete <- (len - (blanks + true_na + written_na)) / len
+  unique_values <- length(unique(vec))
+  tibble(blanks = blanks,
+         true_na = true_na,
+         written_na = written_na,
+         percent_complete = percent_complete,
+         unique_values = unique_values)
+}
+check_complete <- function(df) {
+  z <- deparse(substitute(df))
+  map_df(.x = df, .f = check_calc) %>%
+    mutate(column = colnames(df)) %>%
+    mutate(set = print(z))  %>%
+    select(set, column, blanks, true_na, written_na, percent_complete, unique_values)
+}
+```
+
+
+```{r loaddata, include=FALSE}
+#"/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/BIP_working/BIP_Approved.RDS"
+project_folder <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/"
+
+new_tc_farm_dbf <- foreign::read.dbf(paste0(project_folder, "RUS_TC_Shapefiles_June2020/USDARD_RUS_TELCO_FARMBILL_06042020/USDARD_RUS_TELCO_FARMBILL_06042020.dbf"))
+new_tc_farm_sf <- sf::st_read(paste0(project_folder, "RUS_TC_Shapefiles_June2020/USDARD_RUS_TELCO_FARMBILL_06042020/USDARD_RUS_TELCO_FARMBILL_06042020.shp"))
+
+new_tc_infra_dbf <- foreign::read.dbf(paste0(project_folder, "RUS_TC_Shapefiles_June2020/USDARD_RUS_TELCO_INFRA_06042020/USDARD_RUS_TELCO_INFRA_06042020.dbf"))
+new_tc_infra_sf <- sf::st_read(paste0(project_folder, "RUS_TC_Shapefiles_June2020/USDARD_RUS_TELCO_INFRA_06042020/USDARD_RUS_TELCO_INFRA_06042020.shp"))
+
+missing <- readxl::read_excel(paste0(project_folder, "RUS_TC_Shapefiles_June2020/Missing Farm Bill and Infra Records as of 05052020.xlsx"))
+```
+
+
+```{r plotsettings}
+customPlot2 = list(
+  theme(#plot.margin = unit(c(1,1,2,2), "cm"),
+        axis.text.x  = element_text(vjust=0.5, size=12),
+        plot.title=element_text(size=12, vjust=2),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "#FFFFFF") , 
+        legend.position="right"),  #coord_flip(), 
+  guides(fill=guide_legend(title="Key", ncol = 1),
+        colour =guide_legend(title="Key", ncol = 1))
+)
+```
+
+Outline:
+
+1.  Inventory of Datasets
+    A.  Completeness RUS files
+    B.  Joining RUS files
+    C.  Completeness Joined file
+2.  Profiling Joined Datasets
+    A.  Maps
+    
+
+***
+### I. Inventory of Datasets: 
+
+We received 3 datasets from RUS, the first two listed below. We then appended 2 of these datasets.
+
+1. 2020 Telecom Farm Bill Shapefiles - database of shapes across Telecom projects funded by Farm Bill
+2. 2020 Telecom Infrastructure Bill - database of shapes across Telecom projects funded by Infrastructure Bill
+3. 2020 Missing Data - flat spreadsheet of projects not listed in shapefiles
+
+
+#### A. Completeness of 2020 RC files - shapefiles and missing data
+
+##### 1. 2020 TC Shapefiles - FARM BILL
+
+The Farm Bill Telecom shapefiles are fairly complete, with most variables 100% complete with the exception of the variable "RUS ID" which is missing 2 values at a 98% completeness rate. 
+
+```{r}
+check_complete(new_tc_farm_dbf) %>% knitr::kable()
+```
+
+##### 2. 2020 TC Shapefiles - INFRASTRUCTURE BILL
+
+The Infrastructure Bill Telecom shapefiles are mostly complete, with 9 variables at 100% complete. The remaining 3 variables, SAC, CITY, and STATE, show variable completeness. The SAC variable is missing 42 observations at a 93% completeness rate, while CITY and STATE are missing 400+ (63-70%) observations. 
+
+
+```{r}
+check_complete(new_tc_infra_dbf) %>% knitr::kable()
+```
+
+
+##### 3. 2020 Master Data
+
+The missing data file is also mostly 100% complete. The only exception is the last variable: Status Detail with 16 observations missing at a completeness rate of 30%
+
+```{r}
+check_complete(missing) %>% knitr::kable()
+```
+
+<!-- For the join, the will join on RUS ID alone, but RUS ID appears to be the length of Project ID, so these may be shape-level. -->
+
+
+```{r }
+rbindable_farm <- new_tc_farm_dbf %>% transmute(OBJECTID, PROGRAMTYP, COMPANY, RUS_ID, SUM_TOTAL_, SUM_HOUSEH, SUM_HOUSIN)
+rbindable_infra <- new_tc_infra_dbf %>% transmute(OBJECTID, PROGRAMTYP = "Infra Bill", COMPANY = BORROWER, RUS_ID = RUSID, SUM_TOTAL_ = TOTAL_POPU, SUM_HOUSEH = HOUSEHOLDS, SUM_HOUSIN = HOUSING_UN)
+
+rbindable_farm_sf <- new_tc_farm_sf %>% transmute(OBJECTID, PROGRAMTYP, COMPANY, RUS_ID, SUM_TOTAL_, SUM_HOUSEH, SUM_HOUSIN)
+rbindable_infra_sf <- new_tc_infra_sf %>% transmute(OBJECTID, PROGRAMTYP = "Infra Bill", COMPANY = BORROWER, RUS_ID = RUSID, SUM_TOTAL_ = TOTAL_POPU, SUM_HOUSEH = HOUSEHOLDS, SUM_HOUSIN = HOUSING_UN)
+
+telecom_dbf_lim <- rbind(rbindable_farm, rbindable_infra)
+telecom_sf_lim <- rbind(rbindable_farm_sf, rbindable_infra_sf)
+```
+
+
+#### B. Appending 2020 BIP files - shapefiles only
+
+The two shapefile datasets were joined on the following columns. Where 2 variable names are indicated, the first was the name given in the Farm Bill data and the second in the Infrastructure Bill data.
+
+* OBJECTID
+* PROGRAMTYP (this variable was created for the infrastructure shapefile)
+* COMPANY / BORROWER 
+* RUSID / RUS_ID
+* SUM_TOTAL_ / TOTAL_POPU
+* SUM_HOUSEH / HOUSEHOLDS
+* SUM_HOUSIN_ = HOUSING_UN
+
+#### C. Completeness of Appended 2020 TC dataset
+
+Upon joining, the resulting dataset is also almost completely complete, except for the RUS_ID variable, as we saw in the Farm Bill dataset. 
+
+```{r}
+check_complete(telecom_dbf_lim) %>% knitr::kable()
+```
+
+
+***
+
+### II. Profiling Joined Dataset
+
+
+#### A. Top 10 Companies (by # shapes, area, dollars)
+
+<!-- LEFT: Top 10 companies by number of shapes. -->
+<!-- RIGHT: Top 10 companies by area of shapes,given by the RUS area variable (not any custom calculations). -->
+
+<!-- <div class="col2"> -->
+
+```{r eval = F}
+top10companies_NEW_bynumshapes <- new_rc_approved_dbf %>% count(Awardee_Na) %>% arrange(desc(n)) %>% head(10)
+
+ggplot(top10companies_NEW_bynumshapes, aes(reorder(Awardee_Na, n), n)) + 
+  geom_bar(stat = "identity") + 
+  coord_flip() + 
+  customPlot2 +
+  scale_fill_grey() +
+    labs(title="Plot of top 10 companies \nby number of shapes",
+        x ="Company Name", y = "Number of Shapes",
+       caption = "May or may not be useful to look at number of shapes.") +
+  guides(fill=guide_legend(title="Project Type ID"))
+```
+
+```{r eval = F}
+top10companies_NEW_byarea <- new_rc_approved_dbf %>% group_by(Awardee_Na) %>% summarise(total_area = sum(Square_Mil)) %>% arrange(desc(total_area)) %>% head(10)
+
+ggplot(top10companies_NEW_byarea, aes(reorder(Awardee_Na, total_area), total_area)) + 
+  geom_bar(stat = "identity") + 
+  coord_flip() +
+  customPlot2 +
+  scale_fill_grey() +
+    labs(title="Plot of top 10 companies \nby area of shapes",
+        x ="Company Name", y = "Shape Area (sq miles)"
+       ) +
+  guides(fill=guide_legend(title="Project Type ID"))
+```
+
+<!-- </div> -->
+
+<!-- **TABLE:** Top 10 CC Companies by dollars of net obligation, with their total area, and state given by RUS ID alone. -->
+
+
+
+```{r eval = F}
+
+companies_NEW_bydollars <- new_masterfile %>% group_by(ProjectID) %>% summarise(tot_obl = sum(TotalObligation)) %>% arrange(desc(tot_obl)) 
+
+companies_NEW_byarea <- new_rc_approved_dbf %>% group_by(Awardee_Na, RUS_ID) %>% summarise(tot_area = sum(Square_Mil)) %>% arrange(desc(tot_area)) 
+
+top10companies <- companies_NEW_bydollars %>% left_join(companies_NEW_byarea, by = c("ProjectID" = "RUS_ID")) %>% arrange(desc(tot_obl)) %>% head(10) %>% select(3,2, 4)
+
+# companies_NEW_byprojshape <- join_new_df %>% group_by(Awardee_Na, RUS_ID, States_Ser) %>% summarise(tot_obl = sum(TotalObligation), tot_area = sum(Square_Mil)) %>% arrange(desc(tot_area)) %>% head(10) 
+
+# join_new_df %>% count(COMPANY, RUSID) %>% group_by(COMPANY) %>% summarise(proj_ct = n(), shap_ct = sum(n), RUS_ID_STATE = stringr::str_extract(RUS_ID, "^.{0,2}"))
+
+# top10companies_NEW_bydollars <- top10companies_NEW_bydollars %>% inner_join(companies_NEW_byprojshape, by = "COMPANY")
+
+# join_new_df %>% filter(COMPANY == "United Utilities, Inc.") %>% .$RUS_ID %>% unique()
+
+top10companies %>% mutate(tot_obl = scales::comma(tot_obl), tot_area = scales::comma(tot_area)) %>% knitr::kable()
+
+```
+
+
+<!-- #### B. Total Obligation  -->
+
+
+
+```{r eval = F}
+ggplot(new_masterfile, aes(TotalObligation)) +
+  geom_histogram() +
+  customPlot2 +
+  scale_fill_grey() +
+    labs(title="Plot of RC Projects \nby Obligation Status",
+        x ="Total Obligation", y = "Number of Shapes") 
+```
+
+<!-- #### C. Technology Type -->
+
+```{r eval = F}
+ggplot(join_new_df, aes(Technology)) +
+  geom_bar(stat = "count")  +
+  customPlot2 +
+  coord_flip() + 
+  scale_fill_grey() +
+    labs(title="Plot of RC Projects \nby Technology Type",
+        x ="Technology Type", y = "Number of RC Shapes"
+       ) +
+  guides(fill=guide_legend(title="Project Type ID"))
+
+```
+
+<!-- #### D. Program Type -->
+
+```{r eval = F}
+ggplot(join_new_df, aes(ProjectTypeID)) +
+  geom_bar(stat = "count")  +
+  customPlot2 +
+  coord_flip() + 
+  scale_fill_grey() +
+    labs(title="Plot of RC Projects \nby Program Type",
+        x ="Project Subscriptions", y = "Number of RC Projects"
+       ) 
+  # guides(fill=guide_legend(title="Project Type ID"))
+```
+
+<!-- #### E. Project End - Subscribers -->
+
+```{r eval = F}
+ggplot(join_new_df, aes(Ending_ProjectedSubscriber)) +
+  geom_histogram()  +
+  customPlot2 +
+  # coord_flip() + 
+  scale_fill_grey() +
+    labs(title="Plot of RC Projects \nby Project Subscribers",
+        x ="Project Subscribers", y = "Number of RC Shapes"
+       ) 
+```
+
+
+#### A. Maps 
+
+It's important to note here that there do appear to be overlapping shapes. One example can be seen in the southwestern corner of South Dakota. Another example is seen in the northern end of Minnesota. 
+
+```{r}
+library(leaflet)
+
+join_new_transform <- telecom_sf_lim %>% st_transform("+init=epsg:4326")
+
+hawaii_shapes <- join_new_transform %>% filter(stringr::str_detect(RUS_ID, "^HI"))
+alaska_shapes <- join_new_transform %>% filter(stringr::str_detect(RUS_ID, "^AK"))
+cont_us_shapes <- join_new_transform %>% filter(RUS_ID %in% hawaii_shapes$RUS_ID == FALSE) %>% filter(RUS_ID %in% alaska_shapes$RUSID == FALSE) %>%
+  filter(stringr::str_detect(RUS_ID, "^(AS|GA)") == FALSE)
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = join_new_transform %>% filter(RUS_ID %in% cont_us_shapes$RUS_ID), color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    fillColor = ~colorFactor("YlOrRd", `PROGRAMTYP`), #~colorQuantile("YlOrRd", `TotalObligation`)(`TotalObligation`),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE) )  %>% 
+   fitBounds(-124.316472, 24.822235, -65.770396, 48.675272) 
+
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = join_new_transform %>% filter(RUS_ID %in% hawaii_shapes$RUS_ID), color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    fillColor = ~colorFactor("YlOrRd", `PROGRAMTYP`), #~colorQuantile("YlOrRd", `TotalObligation`)(`TotalObligation`),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE) )
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = join_new_transform %>% filter(RUS_ID %in% alaska_shapes$RUS_ID), color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    fillColor = ~colorFactor("YlOrRd", `PROGRAMTYP`), #~colorQuantile("YlOrRd", `TotalObligation`)(`TotalObligation`),
+    highlightOptions = highlightOptions(color = "white", weight = 2,
+      bringToFront = TRUE) )
+
+
+```
+
+
+#### B. Households
+
+```{r }
+
+ggplot(telecom_dbf_lim, aes(SUM_HOUSEH)) +
+  geom_histogram() +
+  facet_wrap(~PROGRAMTYP) + 
+  # geom_bar(stat = "count")  +
+  customPlot2 +
+  scale_fill_grey() +
+    labs(title="Plot of Telecom Shapes by Households Served",
+        x ="Households", y = "Number of Telecom Shapes"
+       ) +
+  scale_x_continuous(trans='sqrt', breaks = c(500, 2000, seq(0, 75000, 5000))) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  guides(fill=guide_legend(title="Project Type ID"))
+
+```
+
+```{r }
+
+
+ggplot(telecom_dbf_lim %>% group_by(RUS_ID, PROGRAMTYP) %>% summarise(SUM_HOUSEH = sum(SUM_HOUSEH)), aes(SUM_HOUSEH)) +
+  geom_histogram() +
+  facet_wrap(~PROGRAMTYP) + 
+  # geom_bar(stat = "count")  +
+  customPlot2 +
+  scale_fill_grey() +
+    labs(title="Plot of Telecom Borrowers by Households Covered",
+        x ="Households", y = "Number of Borrowers"
+       ) +
+  scale_x_continuous(trans='sqrt', breaks = c(500, 2000, seq(0, 75000, 5000))) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  guides(fill=guide_legend(title="Project Type ID"))
+
+```
+
+
