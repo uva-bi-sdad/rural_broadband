@@ -59,6 +59,8 @@ data_l <- as.list(rurality_files)
 shps <- lapply(data_l, function(x) readRDS(x))
 shps_e <- do.call(rbind, shps)
 
+head(shps_e)
+
 ## CENSUS
 
 ### clean environment
@@ -72,8 +74,9 @@ rm(rurality_files, data_l, shps)
 ```{r}
 # Sys.setenv("ed8973afe8a22958b77ffdb8547c93c3cae1d2fc")
 tidycensus::census_api_key("ed8973afe8a22958b77ffdb8547c93c3cae1d2fc") 
-va_pop_2010 <- tidycensus::get_decennial(geography="place", state=51, variables="P001001", 
+us_pop_2010 <- tidycensus::get_decennial(geography="place", variables="P001001", 
                                          year=2010,  cache_table=TRUE)
+
 ```
 
 ## Load data
@@ -111,9 +114,70 @@ fcc_2017_block_access <- readRDS("/project/biocomplexity/sdad/projects_data/proj
 
 
 ```{r}
-
 fips  <- tigris::fips_codes 
 fips_ <- fips %>% select(state, state_code) %>% distinct()
+
+# geo_folder <- "/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS/"
+# geo_paths <- list.files(geo_folder)
+# 
+# geo_paths <- data.frame(files = geo_paths) %>% mutate(state = stringr::str_remove_all(files, "tl_2018_|_tabblock10.RDS$"))
+# 
+# geo_paths <- geo_paths %>% 
+#   left_join(fips_, by = c("state" = "state_code")) %>% 
+#   transmute(state = state.y, state_fips = state, files, paths = paste0(geo_folder, files))
+# 
+# data_l <- as.list(geo_paths$paths)
+# shapes <- lapply(data_l, function(x) readRDS(x))
+# shapes_e <- do.call(rbind, shapes)
+
+# saveRDS(shapes, "/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS_USA_LIST.RDS")
+
+shapes <- readRDS("/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS_USA_LIST.RDS")
+
+# saveRDS(shapes_e, "/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS_USA_SF.RDS")
+
+shapes_e  <- readRDS("/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS_USA_SF.RDS")
+
+```
+
+
+```{r}
+
+# shapes_e %>% 
+# fcc_2017_block_access$BlockCode <- as.character(fcc_2017_block_access$BlockCode)
+# 
+# shapes_fcc <- list()
+# 
+# for (i in 1:length(shapes)) {
+#   print(i)
+#   shapes_fcc[[i]] <- shapes[[i]] %>% left_join(fcc_2017_block_access, by = c("GEOID10" = "BlockCode")) 
+# }
+# 
+# shapes_fcc[[1]] %>% count(speed_elig)
+# unique(shapes_fcc[[3]]$speed_elig)
+# fcc_2017_block_access
+
+```
+
+```{r}
+fcc_2017_block_access$BlockCode <- as.character(fcc_2017_block_access$BlockCode)
+fcc_2017_block_access <- fcc_2017_block_access %>% mutate(BlockCode2 = ifelse(nchar(BlockCode) == 14, paste0("0", BlockCode), BlockCode))
+
+shapes_e_fcc <- shapes_e %>% 
+  mutate(FULL_GEOID = paste0(STATEFP10, COUNTYFP10, TRACTCE10, BLOCKCE10)) %>% 
+  left_join(fcc_2017_block_access, by = c("FULL_GEOID" = "BlockCode2")) %>% 
+  left_join(fips_, by = c("STATEFP10" = "state_code"))
+
+joinbystate_res <- shapes_e_fcc %>% as.data.frame() %>% count(state, speed_elig)
+fcccehckbystate_res <- fcc_2017_block_access %>% count(StateAbbr, speed_elig) 
+
+joinbystate_res %>% select(-n) %>% count(state) 
+fcccehckbystate_res
+```
+
+
+
+```{r}
 
 fcc_2017_VA <- fcc_2017_block_access %>% filter(StateAbbr == "VA")
 
@@ -249,6 +313,10 @@ leaflet(ffx_union) %>%
 
 
 ```{r}
+
+library(dplyr)
+va_ineligibility <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/va_ineligibility_18AUG2020.RDS")
+
 us_states <- tigris::states()
 va_outline <- us_states %>% filter(STATEFP == "51")
 
