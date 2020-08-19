@@ -179,86 +179,75 @@ fcccehckbystate_res
 
 ```{r}
 
-fcc_2017_VA <- fcc_2017_block_access %>% filter(StateAbbr == "VA")
+# fcc_2017_VA <- fcc_2017_block_access %>% filter(StateAbbr == "VA")
+# 
+# va_blocks_2018 <- readRDS("/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS/tl_2018_51_tabblock10.RDS")
+# va_blocks_2018 <- va_blocks_2018 %>% mutate(FULL_GEOID = paste0(STATEFP10, COUNTYFP10, TRACTCE10, BLOCKCE10))
+# fcc_2017_VA$BlockCode <- as.character(fcc_2017_VA$BlockCode)
+# 
+# fcc_2017_VA <- va_blocks_2018 %>% inner_join(fcc_2017_VA, by = c("FULL_GEOID" = "BlockCode")) 
 
-va_blocks_2018 <- readRDS("/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS/tl_2018_51_tabblock10.RDS")
-va_blocks_2018 <- va_blocks_2018 %>% mutate(FULL_GEOID = paste0(STATEFP10, COUNTYFP10, TRACTCE10, BLOCKCE10))
-fcc_2017_VA$BlockCode <- as.character(fcc_2017_VA$BlockCode)
-
-fcc_2017_VA <- va_blocks_2018 %>% inner_join(fcc_2017_VA, by = c("FULL_GEOID" = "BlockCode")) 
-
-# test_fcc <- fcc_2017_VA %>% filter(speed_elig == 1)
-# table(fcc_2017_VA$speed_elig)
-# table(fcc_2017_VA$speed_elig)/nrow(fcc_2017_VA)
-# plot(test_fcc$geometry)
-
-# plot_elig <- fcc_2017_VA %>% filter(speed_elig == 1)
-# plot_elig <- plot_elig %>% st_transform(st_crs(4326))
-
-# fcc_2017_VA %>% as.data.frame() %>% select(MaxAdDown_, MaxAdUp_, speed_inelig, speed_elig) %>% filter(speed_elig == 0)
-# fcc_2017_VA %>% as.data.frame() %>% filter(MaxAdDown_ == 10) 
-# fcc_2017_block_access %>% as.data.frame() %>% filter(MaxAdDown_ == 13) 
 ```
 
 
 ## Filter rurality datasets to Virginia
 
 ```{r}
-rurality_va <- shps_e %>% filter(STATEFP == "51")
-
-urbanareas2017 <- urbanareas2017 %>% mutate(state = stringr::str_extract(NAME10, ".{2}$") )
-urbanareas2017_va <- urbanareas2017 %>% filter(state == "VA")
-
-rurality_va_ <- rbind(rurality_va %>% 
-                        transmute(SET = "places", GEOID10 = GEOID, 
+rurality_places <- shps_e %>% 
+  transmute(SET = "places", GEOID10 = GEOID, 
                                   NAME10 = NAME, NAMELSAD10 = NAMELSAD, 
-                                  LSAD10 = LSAD, geometry), 
-                      urbanareas2017_va %>% 
-                        transmute(SET = "areas", GEOID10, NAME10, 
-                                  NAMELSAD10, LSAD10, geometry))
+                                  LSAD10 = LSAD, geometry)
 
-rurality_va_ <- rurality_va_ %>% left_join(va_pop_2010, by = c("GEOID10" = "GEOID"))
+rurality_areas <- urbanareas2017 %>% 
+  transmute(SET = "areas", GEOID10, NAME10, 
+                                  NAMELSAD10, LSAD10, geometry)
 
-rurality_va_elig_dontuse <- rurality_va_ %>% filter(value < 20000)
-rurality_va_inelig <- rurality_va_ %>% filter(SET == "areas" | value >= 20000)
+rurality_USA <- rbind(rurality_places, rurality_areas) %>% left_join(us_pop_2010, by = c("GEOID10" = "GEOID"))
 
+rurality_USA_elig_dontuse <- rurality_USA %>% filter(value < 20000)
+rurality_USA_inelig <- rurality_USA %>% filter(SET == "areas" | value >= 20000)  
+  
 ```
 
-## Here is Virginia rurality plotted
+## Here is Iowa rurality plotted
 
 1. orange = census places
 2. red = census areas
 
 ```{r}
-va_counties <- tigris::counties(state = "51")
+# fips_
+# va_counties <- tigris::counties(state = "51")
+ia_counties <-  tigris::counties(state = "19")
+rurality_areas %>% filter(stringr::str_detect(NAME10,"IA$"))
 ```
 
 
 ```{r}
 # so you can see what was there before removing 20K
-leaflet(va_counties) %>%  
+leaflet(ia_counties) %>%  
   addTiles() %>%
   addPolygons(stroke = 0, fillOpacity = 0.2, color = "#808080") %>% 
-  addPolygons(data = rurality_va_, stroke = 0, fillOpacity = .5, color = "#ffb30f") %>%
-  addPolygons(data = urbanareas2017_va, stroke = 0, fillOpacity = .8, color = "#d12115")
+  addPolygons(data = rurality_USA %>% filter(stringr::str_detect(GEOID10,"^19")), stroke = 0, fillOpacity = .5, color = "#ffb30f") %>%
+  addPolygons(data = rurality_areas %>% filter(stringr::str_detect(NAME10,"IA$")), stroke = 0, fillOpacity = .8, color = "#d12115")
 
 
 # so you can see places vs. areas 
-leaflet(va_counties) %>%  
+leaflet(ia_counties) %>%  
   addTiles() %>%
   addPolygons(stroke = 0, fillOpacity = 0.2, color = "#808080") %>% 
-  addPolygons(data = rurality_va_inelig, stroke = 0, fillOpacity = .5, color = "#ffb30f") %>%
-  addPolygons(data = urbanareas2017_va, stroke = 0, fillOpacity = .8, color = "#d12115")
+  addPolygons(data = rurality_USA_inelig %>% filter(stringr::str_detect(GEOID10,"^19")), stroke = 0, fillOpacity = .5, color = "#ffb30f") %>%
+  addPolygons(data = rurality_areas %>% filter(stringr::str_detect(NAME10,"IA$")), stroke = 0, fillOpacity = .8, color = "#d12115")
 
 #places and areas in same color
-leaflet(va_counties) %>%  
+leaflet(ia_counties) %>%  
   addTiles() %>%
   addPolygons(stroke = 0, fillOpacity = 0.2, color = "#808080") %>% 
-  addPolygons(data = rurality_va_inelig, stroke = 0, fillOpacity = .5, color = "#ffb30f") 
+  addPolygons(data = rurality_USA_inelig %>% filter(stringr::str_detect(GEOID10,"^19")), stroke = 0, fillOpacity = .5, color = "#ffb30f") 
 ```
 
 ```{r eval = FALSE}
 rurality_va_elig_dontuse %>% filter(stringr::str_detect(NAME10, "Falls|Vienna|Wolf"))
+rurality_USA_inelig %>% filter(stringr::str_detect(GEOID10,"^19"))
 ```
 
 ```{r}
