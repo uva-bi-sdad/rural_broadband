@@ -48,7 +48,7 @@ Rurality files - 2017 urban areas and census designated places
 1 - Census Areas 2017 (1 file) & Census Places 2017 (50+ files)
 
 
-```{r}
+```{r run0}
 ## RURALITY 
 path <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_2017_urbanareas_places/"
 rurality_files <- list.files(path)
@@ -71,7 +71,7 @@ rm(rurality_files, data_l, shps)
 
 4 - Population data
 
-```{r}
+```{r run1 }
 # Sys.setenv("ed8973afe8a22958b77ffdb8547c93c3cae1d2fc")
 tidycensus::census_api_key("ed8973afe8a22958b77ffdb8547c93c3cae1d2fc") 
 us_pop_2010 <- tidycensus::get_decennial(geography="place", variables="P001001", 
@@ -89,7 +89,7 @@ us_pop_2010 <- tidycensus::get_decennial(geography="place", variables="P001001",
 ## Join FCC availability & Block shapes
 
 
-```{r}
+```{r run2}
 ## FCC
 # fcc_2017 <- read.csv("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fbd_us_without_satellite_dec2017_v2.csv")
 # saveRDS(fcc_2017, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fbd_us_without_satellite_dec2017_v2.RDS")
@@ -113,7 +113,7 @@ fcc_2017_block_access <- readRDS("/project/biocomplexity/sdad/projects_data/proj
 ```
 
 
-```{r}
+```{r run3}
 fips  <- tigris::fips_codes 
 fips_ <- fips %>% select(state, state_code) %>% distinct()
 
@@ -132,7 +132,7 @@ fips_ <- fips %>% select(state, state_code) %>% distinct()
 
 # saveRDS(shapes, "/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS_USA_LIST.RDS")
 
-shapes <- readRDS("/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS_USA_LIST.RDS")
+# shapes <- readRDS("/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS_USA_LIST.RDS")
 
 # saveRDS(shapes_e, "/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS_USA_SF.RDS")
 
@@ -159,7 +159,7 @@ shapes_e  <- readRDS("/project/biocomplexity/sdad/projects_data/usda/bb/original
 
 ```
 
-```{r}
+```{r run4}
 fcc_2017_block_access$BlockCode <- as.character(fcc_2017_block_access$BlockCode)
 fcc_2017_block_access <- fcc_2017_block_access %>% mutate(BlockCode2 = ifelse(nchar(BlockCode) == 14, paste0("0", BlockCode), BlockCode))
 
@@ -171,6 +171,7 @@ shapes_e_fcc <- shapes_e %>%
 joinbystate_res <- shapes_e_fcc %>% as.data.frame() %>% count(state, speed_elig)
 fcccehckbystate_res <- fcc_2017_block_access %>% count(StateAbbr, speed_elig) 
 
+joinbystate_res
 joinbystate_res %>% select(-n) %>% count(state) 
 fcccehckbystate_res
 ```
@@ -190,9 +191,9 @@ fcccehckbystate_res
 ```
 
 
-## Filter rurality datasets to Virginia
+## Filter rurality datasets by population 
 
-```{r}
+```{r run5}
 rurality_places <- shps_e %>% 
   transmute(SET = "places", GEOID10 = GEOID, 
                                   NAME10 = NAME, NAMELSAD10 = NAMELSAD, 
@@ -209,20 +210,20 @@ rurality_USA_inelig <- rurality_USA %>% filter(SET == "areas" | value >= 20000)
   
 ```
 
+
 ## Here is Iowa rurality plotted
 
 1. orange = census places
 2. red = census areas
 
-```{r}
+```{r iowa_example_1}
 # fips_
 # va_counties <- tigris::counties(state = "51")
 ia_counties <-  tigris::counties(state = "19")
 rurality_areas %>% filter(stringr::str_detect(NAME10,"IA$"))
 ```
 
-
-```{r}
+```{r iowa_example_2}
 # so you can see what was there before removing 20K
 leaflet(ia_counties) %>%  
   addTiles() %>%
@@ -245,111 +246,313 @@ leaflet(ia_counties) %>%
   addPolygons(data = rurality_USA_inelig %>% filter(stringr::str_detect(GEOID10,"^19")), stroke = 0, fillOpacity = .5, color = "#ffb30f") 
 ```
 
-```{r eval = FALSE}
+```{r va_spotcheck_1, eval = FALSE}
 rurality_va_elig_dontuse %>% filter(stringr::str_detect(NAME10, "Falls|Vienna|Wolf"))
-rurality_USA_inelig %>% filter(stringr::str_detect(GEOID10,"^19"))
 ```
 
-```{r}
-ffx_fcc <- fcc_2017_VA %>% filter(COUNTYFP10 == "059")
-ffx_fcc
-pal2 <- colorFactor("RdYlBu", ffx_fcc$speed_elig)
+```{r ia_spotcheck_1}
+story_fcc <- shapes_e_fcc %>% filter(StateAbbr == "IA" & stringr::str_detect(BlockCode, "^19169"))
+story_fcc
+pal2 <- colorFactor("RdYlBu", story_fcc$speed_elig)
 ```
 
-
-```{r}
+```{r iowa_example_3}
 # 
-leaflet(va_counties %>% filter(COUNTYFP == "059")) %>%  
+leaflet(ia_counties %>% filter(COUNTYFP == "169")) %>%  
   addTiles() %>%
   addPolygons(stroke = 0, fillOpacity = 0.2, color = "#808080") %>% 
-  addPolygons(data = ffx_fcc, stroke = 0, fillOpacity = .5, color = ~pal2(speed_elig)) #%>%
+  addPolygons(data = story_fcc, stroke = 0, fillOpacity = .5, color = ~pal2(speed_elig)) #%>%
   # addPolygons(data = urbanareas2017_va, stroke = 0, fillOpacity = .8, color = "#d12115")
 ```
 
+## WRONG? Rbinded fcc x rurality 
+
 ```{r}
-fcc_2017_VA_inelig <- fcc_2017_VA %>% filter(speed_inelig == 1)
+fcc_2017_USA_inelig <- shapes_e_fcc %>% filter(speed_inelig == 1)
 
-fcc_2017_VA_inelig %>% head()
-rurality_va_inelig %>% head()
+fcc_2017_USA_inelig %>% head()
+rurality_USA_inelig %>% head()  # 0124184
+fcc_2017_USA_inelig %>% filter(STATEFP10 == "01" )
+
+USA_ineligibility <- rbind(fcc_2017_USA_inelig %>%  transmute(GEOID10, NAME10, geometry, SET = "FCC"),
+      rurality_USA_inelig %>% transmute(GEOID10, NAME10, geometry, SET = "POP") ) 
+
+# saveRDS(USA_ineligibility, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/va_ineligibility_19AUG2020.RDS")
+USA_ineligibility <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/va_ineligibility_19AUG2020.RDS")
+
+rbind(fcc_2017_USA_inelig %>%  transmute(GEOID10, NAME10, geometry, SET = "FCC"),
+      rurality_USA_inelig %>% transmute(GEOID10, NAME10, geometry, SET = "POP") ) 
+
+```
+
+## Josh - Intersect blocks with areas
+
+Per blocks given in FCC files - 90.2% blocks excluded based on speed, 2% are excluded based on rurality criteria, 7% remain as eligible based on combination
+
+```{r}
+table(is.na(shapes_e_fcc$speed_elig))
+table(shapes_e_fcc$speed_elig)
+sum(is.na(shapes_e_fcc$speed_elig))
+sum(is.na(shapes_e_fcc$speed_elig))/nrow(shapes_e_fcc)
+```
+
+```{r}
+table(is.na(fcc_2017_USA_inelig$speed_elig))
+```
+
+st_intersects skews estimate of ineligibility high - where FCC elig touches rurality is now considered ineligible
+
+see if is feasible to run - st_intersection which gives polygon result (much longer, may need to parallelize per state, county)
+add this also for the missing blocks calculation
+
+```{r}
+fcc_2017_USA_elig <- shapes_e_fcc %>% filter(speed_elig == 1)
+fcc_2017_USA_inelig <- shapes_e_fcc %>% filter(speed_elig != 1)
+
+va_test <- fcc_2017_USA_elig %>% filter(StateAbbr == "VA")
+cty_test <- va_test %>% filter(COUNTYFP10 == "059")
+fcc_2017_51059_inelig_by_rurality_SHAPES <- st_intersection(cty_test, rurality_USA_inelig)
+fcc_2017_51059_inelig_by_rurality_SHAPES <- fcc_2017_51059_inelig_by_rurality_SHAPES %>% mutate(geo = st_geometry_type(geometry))
+fcc_2017_51059_inelig_by_rurality_SHAPES %>% filter(stringr::str_detect(geo, "POLYG")) %>% slice(21:30)
+
+leaflet(cty_test) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(color = "#e00460")
+
+leaflet(fcc_2017_51059_inelig_by_rurality_SHAPES %>% filter(stringr::str_detect(geo, "POLYG"))) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons()
+
+fcc_2017_51_inelig_by_rurality_SHAPES <- st_intersection(va_test, rurality_USA_inelig)
+fcc_2017_51_inelig_by_rurality_SHAPES <- fcc_2017_51_inelig_by_rurality_SHAPES %>% mutate(geo = st_geometry_type(geometry))
+
+leaflet(va_test) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(color = "#e00460")
+
+leaflet(fcc_2017_51_inelig_by_rurality_SHAPES %>% filter(stringr::str_detect(geo, "POLYG"))) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons()
+```
 
 
-va_ineligibility <- rbind(fcc_2017_VA_inelig %>%  transmute(GEOID10, NAME10, geometry, SET = "FCC"),
-      rurality_va_inelig %>% transmute(GEOID10, NAME10, geometry, SET = "POP") ) 
+```{r}
+fcc_2017_USA_elig <- shapes_e_fcc %>% filter(speed_elig == 1)
+fcc_2017_USA_inelig <- shapes_e_fcc %>% filter(speed_elig != 1)
+
+#### ST INTERSECT 
+fcc_2017_USA_inelig_by_rurality_VECTOR <- st_intersects(fcc_2017_USA_elig, rurality_USA_inelig) 
+#### ST INTERSECTION 
+fcc_2017_51059_inelig_by_rurality_SHAPES <- st_intersection(fcc_2017_USA_elig, rurality_USA_inelig)
+
+fcc_2017_USA_elig$rural_inel <- lengths(fcc_2017_USA_inelig_by_rurality_VECTOR)
+# fcc_2017_USA_inelig_by_rurality_DF <- fcc_2017_USA_elig %>% filter(rural_inel != 0)
+
+# USA_2017_inelig_RnA <- rbind(fcc_2017_USA_inelig_by_rurality_DF, fcc_2017_USA_inelig %>% mutate(rural_inel = 99))
+USA_2017_RESelig_RnA <- rbind(fcc_2017_USA_elig, fcc_2017_USA_inelig %>% mutate(rural_inel = 99))
+
+
+
+# saveRDS(USA_2017_RESelig_RnA, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_eligibility_RES_24AUG2020.RDS")
+USA_2017_RESelig_RnA <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_eligibility_RES_24AUG2020.RDS")
+
+fcc_2017_51059_inelig_by_rurality_SHAPES <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_eligibility_RES_01SEPT2020_pregeofilt.RDS")
+
+
+protborr <- sf::st_read("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/rus_broadband_servicearea/ProtectedBorrowers04222019.shp")
+
+# fcc_2017_51059_inelig_by_rurality_SHAPES %>% saveRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_eligibility_RES_SHP_27AUG2020.RDS")
+
 ```
 
 
 
-```{r}
-
-# va_inlig_intersection <- st_intersection(fcc_2017_VA_inelig, rurality_va_)  %>% 
-#   mutate(geo =st_geometry_type(geometry)) #%>% filter(stringr::str_detect(geo, "POLYG"))
-# saveRDS(va_ineligibility, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/va_ineligibility_18AUG2020.RDS")
-va_ineligibility <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/va_ineligibility_18AUG2020.RDS")
-
-ffx <- va_ineligibility %>% filter(stringr::str_detect(GEOID10, "^51059"))
-ffx_union <- st_union(ffx)
-# va_ineligibility_union <- st_union(va_ineligibility)  # DO NOT RUN, will crash 
-
-leaflet(ffx_union) %>%
-  addTiles() %>%
-  addPolygons(stroke = 0, fillOpacity = .5, color = "#ED190E") 
-
-
-
-
-
-```
-
 
 ```{r}
+library(sf)
+va_intersects_1 <- USA_2017_RESelig_RnA %>% filter(STATEFP10 == "51")
+va_intersects_1 <- va_intersects_1 %>% mutate(elig = ifelse(speed_elig == 1 & rural_inel < 1, 1, 0)) 
+va_intersects_1 <- va_intersects_1 %>% filter(elig == 0)
+va_intersects_1_ <- st_union(va_intersects_1)
 
-library(dplyr)
-va_ineligibility <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/va_ineligibility_18AUG2020.RDS")
+leaflet(va_intersects_1_) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons()
 
-us_states <- tigris::states()
-va_outline <- us_states %>% filter(STATEFP == "51")
+leaflet(va_intersects_1 %>% filter(COUNTYFP10 == "059")) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons()
 
-test_va_elig <- sf::st_difference(va_outline, va_ineligibility)
-
-
-
-```
-
-
-
-
-```{r}
-ffx_1 <- st_union(ffx)
-
-# ffx_2 <- st_combine(ffx)
-
-leaflet(ffx_1) %>%
-  addTiles() %>% 
-  addPolygons(stroke = 0, fillOpacity = .5, color = "#4287f5")
-
-# leaflet(ffx_2) %>%
-#   addTiles() %>% 
-#   addPolygons(stroke = 0, fillOpacity = .5, color = "#4287f5")
-
-
-
-# plot(va_outline$geometry)
-test_va_elig <- sf::st_difference(va_outline, ffx_1)
-
-leaflet(test_va_elig) %>%
-  addTiles() %>% 
-  addPolygons(stroke = 0, fillOpacity = .5, color = "#4287f5")
-
-
-```
-
-```{r}
-length(unique(va_intersection$COUNTYFP10))
-
-county_fips <- unique(va_intersection$COUNTYFP10)
-for (i in 1:length(unique(va_intersection$COUNTYFP10))) {
   
-}
 ```
+
+
+```{r}
+USA_2017_RESelig_RnA <- USA_2017_RESelig_RnA %>% 
+  mutate(elig = ifelse(speed_elig == 0, 0, ifelse(rural_inel == 1, 1, 0))) 
+
+final_res <- USA_2017_RESelig_RnA %>% 
+  as.data.frame() %>% 
+  count(speed_elig, rural_inel, elig) %>% 
+  mutate(perc = scales::percent(n/nrow(USA_2017_RESelig_RnA)))
+
+final_res
+
+final_res %>% as_data_frame() %>% group_by(elig) %>% summarise(sum = sum(n)) 
+
+88846/(88846+7815537)
+```
+
+```{r}
+# sum(state_res$total_tracts, na.rm = TRUE)
+# 
+# USA_2017_RESelig_RnA %>% head()
+# 
+# length(unique(USA_2017_RESelig_RnA$GEOID10)) #7904383
+# nrow(USA_2017_RESelig_RnA)  #7904383
+```
+
+this is a duplicated chunk for ease of run
+```{r }
+library(dplyr)
+library(sf)
+fcc_2017_51059_inelig_by_rurality_SHAPES <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_eligibility_RES_01SEPT2020_pregeofilt.RDS")
+
+
+USA_2017_RESelig_RnA <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_eligibility_RES_24AUG2020.RDS")
+
+fips  <- tigris::fips_codes 
+fips_ <- fips %>% select(state, state_code) %>% distinct()
+
+shapes_e  <- readRDS("/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS_USA_SF.RDS")
+
+```
+
+
+```{r}
+fcc_2017_51059_inelig_by_rurality_SHAPES <- fcc_2017_51059_inelig_by_rurality_SHAPES %>% mutate(area = st_area(geometry))
+USA_2017_RESelig_RnA <- USA_2017_RESelig_RnA %>% mutate(overlap_area = sf::st_area(geometry)) 
+
+shapes_e <- shapes_e %>% mutate(block_area = sf::st_area(geometry)) 
+
+```
+
+
+```{r}
+orig_inel_intersection_areas <- fcc_2017_51059_inelig_by_rurality_SHAPES %>% as.data.frame()  %>% select(GEOID10, geo, area)
+filt_inel_intersection_areas  <- USA_2017_RESelig_RnA %>% as.data.frame() %>% mutate(geo = st_geometry_type(geometry))  %>% select(GEOID10, geo, overlap_area)
+
+orig_block_areas <- shapes_e %>% mutate(geo = st_geometry_type(geometry)) %>% as.data.frame() %>% select(GEOID10, geometry, block_area)
+
+check_intersection_areas <- orig_block_areas %>% left_join(orig_inel_intersection_areas, by = "GEOID10") %>% left_join(filt_inel_intersection_areas, by  = "GEOID10")
+
+table(check_intersection_areas$geo.x)
+table(check_intersection_areas$geo.y)
+
+orig_block_areas
+check_intersection_areas <- check_intersection_areas %>% mutate(diff1 = block_area - area, 
+                                    diff2 = area - overlap_area,
+                                    diff3 = block_area - overlap_area)
+
+table(as.numeric(check_intersection_areas$diff1) == 0)
+#260K == 0 diff between block and orig-inel-area but 44K there is a diff
+table(as.numeric(check_intersection_areas$diff2) == 0)
+#same - but for orig-inel-area and filtered for polygons
+table(as.numeric(check_intersection_areas$diff3) == 0)
+#everything is 0 for original block and filtered for polygons
+
+check_intersection_areas %>% filter(as.numeric(diff1) > 0) %>% .$geo.x %>% table
+check_intersection_areas %>% filter(as.numeric(diff1) > 0) %>% .$geo.y %>% table
+filt_inel_intersection_areas %>% .$geo %>% table()
+
+```
+
+
+
+
+```{r}
+test_subset <- shapes_e %>% as.data.frame() %>% head() %>% select(GEOID10, block_area)
+USA_2017_RESelig_RnA_perc_block  <- USA_2017_RESelig_RnA %>% as.data.frame() %>% left_join(shapes_e, by = "GEOID10") %>% mutate(block_perc_inelig = (block_area - overlap_area) / block_area)
+USA_2017_RESelig_RnA_perc_block %>% select(GEOID10, block_area, overlap_area) %>% head(10)
+unique(USA_2017_RESelig_RnA_perc_block$block_perc_inelig)
+```
+
+
+```{r}
+state_block_ct <- shapes_e %>% as.data.frame() %>% count(STATEFP10) %>% left_join(fips_, by = c("STATEFP10" = "state_code"))
+county_block_ct <- shapes_e %>% as.data.frame() %>% count(STATEFP10, COUNTYFP10) %>% left_join(fips_, by = c("STATEFP10" = "state_code"))
+tract_block_ct <- shapes_e %>% as.data.frame() %>% count(STATEFP10, COUNTYFP10, TRACTCE10) %>% left_join(fips_, by = c("STATEFP10" = "state_code"))
+```
+
+run a rurality intersection for blocks missing in FCC data:
+* where FCC is available, add rurality - eligible + ineligible
+* where census blocks are not listed in FCC, check blocks against rurality - eligible + ineligible
+
+```{r}
+state_res <- USA_2017_RESelig_RnA %>%
+  as.data.frame() %>%
+  count(state, elig) %>% 
+  reshape2::dcast(formula = state ~ elig) 
+
+state_res_A <- state_res %>% 
+  left_join(state_block_ct %>% select(state, n), by = "state") %>%
+  mutate(perc_elig = `1`/n) 
+
+state_res_B <- state_res %>% 
+  left_join(state_block_ct %>% select(state, n), by = "state") %>%
+  mutate(perc_elig = (`1` + (n -`1` - `0`) ) /n) 
+```
+
+
+```{r}
+county_res <- USA_2017_RESelig_RnA %>% 
+  as.data.frame() %>%
+  count(state, COUNTYFP10, elig) %>%
+  reshape2::dcast(formula = state + COUNTYFP10 ~ elig) 
+
+county_res <- county_res %>% 
+  left_join(county_block_ct %>% select(state,COUNTYFP10, n), by = c("state", "COUNTYFP10")) %>%
+  mutate(perc_elig = `1`/n)
+```
+
+```{r}
+tract_res <- USA_2017_RESelig_RnA %>% 
+  as.data.frame() %>%
+  count(state, COUNTYFP10, TRACTCE10, elig) %>%
+  reshape2::dcast(formula = state + COUNTYFP10 + TRACTCE10 ~ elig) 
+
+tract_res <- tract_res %>% 
+  left_join(tract_block_ct %>% select(state,COUNTYFP10, TRACTCE10, n), by = c("state", "COUNTYFP10", "TRACTCE10")) %>%
+  mutate(perc_elig = `1`/n)
+```
+
+
+```{r}
+table(round(state_res$perc_elig, 2))
+table(round(county_res$perc_elig, 2))
+table(round(tract_res$perc_elig, 2))
+
+hist(round(state_res$perc_elig, 2), right = T)
+hist(round(county_res$perc_elig, 2), right = T)
+hist(round(tract_res$perc_elig, 2), right = T)
+
+boxplot(round(state_res$perc_elig, 2))
+boxplot(round(county_res$perc_elig, 2))
+boxplot(round(tract_res$perc_elig, 2))
+
+library(ggplot2)
+
+ggplot(data = state_res, aes(x = state, y = perc_elig)) + 
+  geom_bar(stat = "identity")
+
+```
+
+
+
+
+
+
+
+
 
 
