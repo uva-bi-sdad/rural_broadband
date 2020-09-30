@@ -108,7 +108,6 @@ fips_ <- fips %>% select(state, state_code) %>% distinct()
 # saveRDS(shapes_e, "/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS_USA_SF.RDS")
 
 shapes_e  <- readRDS("/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS_USA_SF.RDS")
-
 ```
 
 
@@ -200,7 +199,7 @@ rm(fcc_2018_block_max, fips, fips_, rurality_areas, rurality_places, rurality_US
 Now trying to get Intersects - B - census blocks that do not appear in FCC data 
 these need to be intersected against rural files
 
-```{r}
+```{r intersectB}
 shapes_e  <- readRDS("/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS_USA_SF.RDS")
 
 USA_speed_rural_criteria_2018 <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2018_speed_urban_criteria_eligibility_RES_17SEPT2020.RDS")
@@ -241,7 +240,7 @@ saveRDS(USA_speed_rural_criteria_2018_censusblocks, "/project/biocomplexity/sdad
 
 
 
-```{r}
+```{r existingprojects}
 USA_speed_rural_criteria_2018_censusblocks <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2018_FULLSET_speed_urban_criteria_eligibility_RES_17SEPT2020.RDS")
 
 protborr <- sf::st_read("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/rus_broadband_servicearea/ProtectedBorrowers04222019.shp")
@@ -252,6 +251,7 @@ protborr <- protborr %>% st_transform(st_crs(USA_speed_rural_criteria_2018_censu
 blocks_criteriaXprotborr_VECTOR <- st_intersects(USA_speed_rural_criteria_2018_censusblocks, protborr) 
 
 USA_speed_rural_criteria_2018_censusblocks$protborr_inelg_vec <- blocks_criteriaXprotborr_VECTOR %>% lengths >0 
+
 table(USA_speed_rural_criteria_2018_censusblocks$disqualification, USA_speed_rural_criteria_2018_censusblocks$protborr_inelg_vec)
 
 USA_speed_rural_criteria_2018_censusblocks <- USA_speed_rural_criteria_2018_censusblocks %>% 
@@ -304,9 +304,24 @@ Protected Borrowers does not have ReConnect projects
 ```
 
 
-```{r}
+```{r perc_eligibility_byblock}
 USA_speed_rural_criteria_2018_censusblocks <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2018_FULLCRITERIA_speed_urban_criteria_eligibility_RES_21SEPT2020.RDS")
-USA_speed_rural_criteria_2018_censusblocks
+
+USA_speed_rural_criteria_2018_censusblocks_missing <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2018_FULLCRITERIA_speed_urban_criteria_eligibility_RES_missingstates_23SEPT2020.RDS")
+
+# savepath <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages/"
+
+
+# setdiff(colnames(USA_speed_rural_criteria_2018_censusblocks_missing), colnames(USA_speed_rural_criteria_2018_censusblocks))
+# 
+# checks <- USA_speed_rural_criteria_2018_censusblocks_missing %>% transmute(check1 = ifelse(STATEFP == STATEFP10, 1, 0),
+#                                                               check2 = ifelse(COUNTYFP == COUNTYFP10, 1, 0))
+# table(checks$check1, useNA = "ifany")
+# table(checks$check2, useNA = "ifany")
+
+USA_speed_rural_criteria_2018_censusblocks <- rbind(USA_speed_rural_criteria_2018_censusblocks, USA_speed_rural_criteria_2018_censusblocks_missing %>% select(-STATEFP, -COUNTYFP))
+
+saveRDS(USA_speed_rural_criteria_2018_censusblocks, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages//USA_2018_FULLCRITERIA_final_criteria_eligibility_23SEPT2020.RDS")
 
 tract_summary <- USA_speed_rural_criteria_2018_censusblocks %>% as.data.frame() %>% count(STATEFP10, COUNTYFP10, TRACTCE10, disqualification3) %>% 
   mutate(eligibility = ifelse(disqualification3 == "not disqual by speed/rural", "ELIGIBLE", "INELIGIBLE")) %>% 
@@ -320,8 +335,10 @@ tract_summary <- USA_speed_rural_criteria_2018_censusblocks %>% as.data.frame() 
 
 hist(tract_summary$PERC_ELIGIBLE)
 table(tract_summary$PERC_ELIGIBLE == 0)
-47708/nrow(tract_summary)
-15872/nrow(tract_summary)
+18194/nrow(tract_summary) # FALSE = ELIGIBLE
+54963/nrow(tract_summary) # TRUE = INELIGIBLE
+
+# saveRDS(tract_summary, paste0(savepath, "2018_tract_summary_blockct_perc_elig", "_SEPT23_2020", ".RDS"))
 
 county_summary <- USA_speed_rural_criteria_2018_censusblocks %>% as.data.frame() %>% count(STATEFP10, COUNTYFP10, disqualification3) %>% 
   mutate(eligibility = ifelse(disqualification3 == "not disqual by speed/rural", "ELIGIBLE", "INELIGIBLE")) %>% 
@@ -335,8 +352,10 @@ county_summary <- USA_speed_rural_criteria_2018_censusblocks %>% as.data.frame()
 
 hist(county_summary$PERC_ELIGIBLE)
 table(county_summary$PERC_ELIGIBLE == 0)
-2455/nrow(county_summary)
-352/nrow(county_summary)
+2770/nrow(county_summary)  # FALSE = ELIGIBLE
+383/nrow(county_summary) # TRUE = INELIGIBLE
+
+# saveRDS(county_summary, paste0(savepath, "2018_county_summary_blockct_perc_elig", "_SEPT23_2020", ".RDS"))
 
 state_summary <- USA_speed_rural_criteria_2018_censusblocks %>% as.data.frame() %>% count(STATEFP10, disqualification3) %>% 
   mutate(eligibility = ifelse(disqualification3 == "not disqual by speed/rural", "ELIGIBLE", "INELIGIBLE")) %>% 
@@ -350,8 +369,23 @@ state_summary <- USA_speed_rural_criteria_2018_censusblocks %>% as.data.frame() 
 
 hist(state_summary$PERC_ELIGIBLE)
 table(state_summary$PERC_ELIGIBLE == 0)
-2455/nrow(state_summary)
-47/nrow(state_summary)
+53/nrow(state_summary) # FALSE = ELIGIBLE
+1/nrow(state_summary) # TRUE = INELIGIBLE
+
+# saveRDS(state_summary, paste0(savepath, "2018_state_summary_block_ct_perc_elig", "_SEPT23_2020", ".RDS"))
+
+library(ggplot2)
+state_summary <- state_summary %>% 
+  left_join(fips_, by = c("STATEFP10" = "state_code"))
+state_summary <- state_summary %>% 
+  mutate(PERC_ELIGIBLE__ = paste0(100*(as.numeric(format(PERC_ELIGIBLE, digits = 1))), "%"))
+ggplot(state_summary, aes(x = reorder(state, -PERC_ELIGIBLE), y = PERC_ELIGIBLE)) + 
+  geom_bar(stat = "identity") + 
+  geom_text(stat = "identity", aes(label = reorder(PERC_ELIGIBLE__, -PERC_ELIGIBLE), hjust=0.5, vjust = -1)) + 
+  labs(title = "Percent Eligibility - States") + 
+  xlab(label = "State Abbreviation") + 
+  ylab(label = "Percent Eligibility (% by # blocks)")
+
 
 
 fips_ %>% filter(state_code %in% setdiff(fips_$state_code, state_summary$STATEFP10)) %>% left_join(fips %>% select(state_code, state_name) %>% distinct(), by = "state_code")
@@ -365,9 +399,99 @@ unique(fcc_2018_block_max$StateAbbr)
 
 fips_ %>% filter(state_code %in% setdiff(fips_$state_code, shapes_e$STATEFP10))
 
+
+
 ```
 
 
+```{r perc_eligibility_byarea}
+
+USA_speed_rural_criteria_2018_censusblocks <- USA_speed_rural_criteria_2018_censusblocks %>% mutate(blockarea = st_area(geometry))
+
+tract_summary2 <- USA_speed_rural_criteria_2018_censusblocks %>% 
+  as.data.frame() %>% 
+  mutate(eligibility = ifelse(disqualification3 == "not disqual by speed/rural", "ELIGIBLE", "INELIGIBLE")) %>% 
+  group_by(STATEFP10, COUNTYFP10, TRACTCE10, eligibility) %>% 
+  summarise(area = as.numeric(blockarea))  %>%
+  reshape2::dcast(STATEFP10 + COUNTYFP10 + TRACTCE10 ~ eligibility, value.var = "area", fun.aggregate = sum) %>% 
+  mutate(Total = ELIGIBLE + INELIGIBLE, 
+         PERC_ELIGIBLE = ELIGIBLE/Total, 
+         PERC_ELIGIBLE_ = scales::percent(PERC_ELIGIBLE))
+
+hist(tract_summary$PERC_ELIGIBLE)
+table(tract_summary$PERC_ELIGIBLE == 0)
+table(tract_summary$PERC_ELIGIBLE == 0)/nrow(tract_summary)  # FALSE = ELIGIBLE  # TRUE = INELIGIBLE
+
+
+
+saveRDS(tract_summary, paste0(savepath, "2018_tract_summary_area_perc_elig", "_SEPT23_2020", ".RDS"))
+```
+
+```{r}
+compare <- tract_summary %>% 
+  left_join(tract_summary2, by = c("STATEFP10", "COUNTYFP10", "TRACTCE10")) 
+  
+compare %>% select(1:3, ELIGIBLE.x, ELIGIBLE.y, Total.x, Total.y)
+compare %>% select(1:3, ELIGIBLE.x, ELIGIBLE.y, PERC_ELIGIBLE.x, PERC_ELIGIBLE.y)
+
+compare %>% transmute(diff = PERC_ELIGIBLE.x - PERC_ELIGIBLE.y) %>% .$diff %>% hist
+fips %>% select(state, state_name) %>% distinct()
+
+```
+
+
+
+```{r}
+county_summary <- USA_speed_rural_criteria_2018_censusblocks %>% 
+  as.data.frame() %>% 
+  mutate(eligibility = ifelse(disqualification3 == "not disqual by speed/rural", "ELIGIBLE", "INELIGIBLE")) %>% 
+  group_by(STATEFP10, COUNTYFP10, eligibility) %>% 
+  summarise(area = as.numeric(blockarea))  %>%
+  reshape2::dcast(STATEFP10 + COUNTYFP10 ~ eligibility, value.var = "area", fun.aggregate = sum) %>% 
+  mutate(Total = ELIGIBLE + INELIGIBLE, 
+         PERC_ELIGIBLE = ELIGIBLE/Total, 
+         PERC_ELIGIBLE_ = scales::percent(PERC_ELIGIBLE))
+
+hist(county_summary$PERC_ELIGIBLE)
+table(county_summary$PERC_ELIGIBLE == 0)
+table(county_summary$PERC_ELIGIBLE == 0)/nrow(county_summary)  # FALSE = ELIGIBLE  # TRUE = INELIGIBLE
+
+saveRDS(county_summary, paste0(savepath, "2018_county_summary_area_perc_elig", "_SEPT23_2020", ".RDS"))
+
+```
+
+
+```{r}
+state_summary <- USA_speed_rural_criteria_2018_censusblocks %>% 
+  as.data.frame() %>% 
+  mutate(eligibility = ifelse(disqualification3 == "not disqual by speed/rural", "ELIGIBLE", "INELIGIBLE")) %>% 
+  group_by(STATEFP10, eligibility) %>% 
+  summarise(area = as.numeric(blockarea))  %>%
+  reshape2::dcast(STATEFP10  ~ eligibility, value.var = "area", fun.aggregate = sum) %>% 
+  mutate(Total = ELIGIBLE + INELIGIBLE, 
+         PERC_ELIGIBLE = ELIGIBLE/Total, 
+         PERC_ELIGIBLE_ = scales::percent(PERC_ELIGIBLE))
+
+hist(state_summary$PERC_ELIGIBLE)
+table(state_summary$PERC_ELIGIBLE == 0)
+table(state_summary$PERC_ELIGIBLE == 0)/nrow(state_summary)  # FALSE = ELIGIBLE  # TRUE = INELIGIBLE
+
+# saveRDS(state_summary, paste0(savepath, "2018_state_summary_area_perc_elig", "_SEPT23_2020", ".RDS"))
+```
+
+```{r}
+state_summary <- state_summary %>% 
+  left_join(fips_, by = c("STATEFP10" = "state_code"))
+state_summary <- state_summary %>% 
+  mutate(PERC_ELIGIBLE__ = paste0(100*(as.numeric(format(PERC_ELIGIBLE, digits = 1))), "%"))
+ggplot(state_summary, aes(x = reorder(state, -PERC_ELIGIBLE), y = PERC_ELIGIBLE)) + 
+  geom_bar(stat = "identity") + 
+  geom_text(stat = "identity", aes(label = reorder(PERC_ELIGIBLE__, -PERC_ELIGIBLE), hjust=0.5, vjust = -1)) + 
+  labs(title = "Percent Eligibility - States") + 
+  xlab(label = "State Abbreviation") + 
+  ylab(label = "Percent Eligibility (% by area)")
+
+```
 
 
          
@@ -498,5 +622,226 @@ lookatduplicatedblockintersections <- compare_area1 %>% filter(GEOID10 %in% dupe
 dupeblockintersectionIDS<- lookatduplicatedblockintersections %>% filter(n  < 2) %>% .$GEOID10 %>% unique
 compare_area %>% filter(GEOID10 %in% dupeblockintersectionIDS) %>% arrange(GEOID10)
 ```
+
+
+###################
+
+Missing states
+
+```{r}
+# missing_states <˛ c("11", "15", "33", "42", "44", "48", "69", "72", "74", "78")
+# texas <- tigris::blocks(state = missing_states[6])
+# # saveRDS(texas, "/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/tl_2019_48_tabblock10.RDS")
+# rm(state)
+# gc()
+# state <- tigris::blocks(state = missing_states[10], year = 2018) # 8-10 didn't work
+# saveRDS(state, "/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/tl_2018_69_tabblock10.RDS")
+
+paths <- c("/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/tl_2018_11_tabblock10.RDS", 
+           "/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/tl_2018_15_tabblock10.RDS",
+           "/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/tl_2018_33_tabblock10.RDS",
+           "/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/tl_2018_42_tabblock10.RDS",
+           "/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/tl_2018_44_tabblock10.RDS",
+           "/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/tl_2018_48_tabblock10.RDS",
+           "/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/tl_2018_69_tabblock10.RDS"
+           )
+
+data_l <- as.list(paths)
+shapes <- lapply(data_l, function(x) readRDS(x))
+shapes_e_missing <- do.call(rbind, shapes)
+
+rm(paths, data_l, shapes)
+gc()
+
+
+#### block - run4
+
+shapes_e_fcc <- shapes_e_missing %>% 
+  mutate(FULL_GEOID = paste0(STATEFP10, COUNTYFP10, TRACTCE10, BLOCKCE10)) %>% 
+  left_join(fcc_2018_block_max, by = c("FULL_GEOID" = "BlockCode2")) %>% 
+  left_join(fips_, by = c("STATEFP10" = "state_code"))
+
+#### block - intersectB
+
+block_IDs_not_listed_in_fcc <- setdiff(shapes_e_missing$GEOID10, USA_speed_rural_criteria_2018$FULL_GEOID)
+
+shapes_not_listed_in_fcc <- shapes_e_missing %>% filter(GEOID10 %in% block_IDs_not_listed_in_fcc)
+
+# check intersectB
+nrow(USA_speed_rural_criteria_2018_censusblocks)
+nrow(shapes_e_missing)
+
+#### block - existing projects
+
+saveRDS(USA_speed_rural_criteria_2018_censusblocks, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2018_FULLCRITERIA_speed_urban_criteria_eligibility_RES_missingstates_23SEPT2020.RDS")
+
+```
+
+```{r overall_eligibility table}
+
+USA_speed_rural_criteria_2018_censusblocks <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages//USA_2018_FULLCRITERIA_final_criteria_eligibility_23SEPT2020.RDS")
+
+table(USA_speed_rural_criteria_2018_censusblocks$disqualification3)
+nrow(USA_speed_rural_criteria_2018_censusblocks)
+
+```
+
+
+
+```{r cc_perc_eligibility_bloctct }
+USA_speed_rural_criteria_2018_censusblocks <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages//USA_2018_FULLCRITERIA_final_criteria_eligibility_23SEPT2020.RDS")
+
+# USA_speed_rural_criteria_2018_censusblocks %>% .$disqualification
+tract_summary <- USA_speed_rural_criteria_2018_censusblocks %>% as.data.frame() %>% count(STATEFP10, COUNTYFP10, TRACTCE10, disqualification) %>% 
+  mutate(eligibility = ifelse(disqualification == "not disqual by speed/rural", "ELIGIBLE", "INELIGIBLE")) %>% 
+  select(-disqualification) %>% 
+  group_by(STATEFP10, COUNTYFP10, TRACTCE10, eligibility) %>%
+  summarise(sum = sum(n)) %>% 
+  reshape2::dcast(STATEFP10 + COUNTYFP10 + TRACTCE10 ~ eligibility, sum) %>% 
+  mutate(Total = ELIGIBLE + INELIGIBLE, 
+         PERC_ELIGIBLE = ELIGIBLE/Total, 
+         PERC_ELIGIBLE_ = scales::percent(PERC_ELIGIBLE))
+
+hist(tract_summary$PERC_ELIGIBLE)
+table(tract_summary$PERC_ELIGIBLE == 0) # FALSE = ELIGIBLE  # TRUE = INELIGIBLE
+table(tract_summary$PERC_ELIGIBLE == 0)/nrow(tract_summary)
+
+# saveRDS(tract_summary, paste0(savepath, "2018_tract_summary_cc_blockct_perc_elig", "_SEPT23_2020", ".RDS"))
+
+county_summary <- USA_speed_rural_criteria_2018_censusblocks %>% as.data.frame() %>% count(STATEFP10, COUNTYFP10, disqualification) %>% 
+  mutate(eligibility = ifelse(disqualification == "not disqual by speed/rural", "ELIGIBLE", "INELIGIBLE")) %>% 
+  select(-disqualification) %>% 
+  group_by(STATEFP10, COUNTYFP10, eligibility) %>%
+  summarise(sum = sum(n)) %>% 
+  reshape2::dcast(STATEFP10 + COUNTYFP10 ~ eligibility, sum) %>% 
+  mutate(Total = ELIGIBLE + INELIGIBLE, 
+         PERC_ELIGIBLE = ELIGIBLE/Total, 
+         PERC_ELIGIBLE_ = scales::percent(PERC_ELIGIBLE))
+
+hist(county_summary$PERC_ELIGIBLE)
+table(county_summary$PERC_ELIGIBLE == 0)
+table(county_summary$PERC_ELIGIBLE == 0)/nrow(county_summary)  # FALSE = ELIGIBLE  # TRUE = INELIGIBLE
+
+# saveRDS(county_summary, paste0(savepath, "2018_county_summary_cc_blockct_perc_elig", "_SEPT23_2020", ".RDS"))
+
+state_summary <- USA_speed_rural_criteria_2018_censusblocks %>% as.data.frame() %>% count(STATEFP10, disqualification) %>% 
+  mutate(eligibility = ifelse(disqualification == "not disqual by speed/rural", "ELIGIBLE", "INELIGIBLE")) %>% 
+  select(-disqualification) %>% 
+  group_by(STATEFP10, eligibility) %>%
+  summarise(sum = sum(n)) %>% 
+  reshape2::dcast(STATEFP10 ~ eligibility, sum) %>% 
+  mutate(Total = ELIGIBLE + INELIGIBLE, 
+         PERC_ELIGIBLE = ELIGIBLE/Total, 
+         PERC_ELIGIBLE_ = scales::percent(PERC_ELIGIBLE))
+
+hist(state_summary$PERC_ELIGIBLE)
+table(state_summary$PERC_ELIGIBLE == 0)
+table(state_summary$PERC_ELIGIBLE == 0)/nrow(state_summary) # FALSE = ELIGIBLE # TRUE = INELIGIBLE
+
+# saveRDS(state_summary, paste0(savepath, "2018_state_summary_cc_block_ct_perc_elig", "_SEPT23_2020", ".RDS"))
+```
+
+```{r}
+library(ggplot2)
+state_summary<- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages/2018_state_summary_cc_block_ct_perc_elig_SEPT23_2020.RDS")
+
+state_summary <- state_summary %>% 
+  left_join(fips_, by = c("STATEFP10" = "state_code"))
+state_summary <- state_summary %>% 
+  mutate(PERC_ELIGIBLE__ = paste0(100*(as.numeric(format(PERC_ELIGIBLE, digits = 1))), "%"))
+ggplot(state_summary, aes(x = reorder(state, -PERC_ELIGIBLE), y = PERC_ELIGIBLE)) + 
+  geom_bar(stat = "identity") + 
+  geom_text(stat = "identity", aes(label = reorder(PERC_ELIGIBLE__, -PERC_ELIGIBLE), hjust=0.5, vjust = -1)) + 
+  labs(title = "Percent Eligibility - States") + 
+  xlab(label = "State Abbreviation") + 
+  ylab(label = "Percent Eligibility (% by area)")
+```
+
+
+```{r perc_eligibility_byarea_cc}
+
+USA_speed_rural_criteria_2018_censusblocks <- USA_speed_rural_criteria_2018_censusblocks %>% mutate(blockarea = st_area(geometry))
+
+tract_summary2 <- USA_speed_rural_criteria_2018_censusblocks %>% 
+  as.data.frame() %>% 
+  mutate(eligibility = ifelse(disqualification == "not disqual by speed/rural", "ELIGIBLE", "INELIGIBLE")) %>% 
+  group_by(STATEFP10, COUNTYFP10, TRACTCE10, eligibility) %>% 
+  summarise(area = as.numeric(blockarea))  %>%
+  reshape2::dcast(STATEFP10 + COUNTYFP10 + TRACTCE10 ~ eligibility, value.var = "area", fun.aggregate = sum) %>% 
+  mutate(Total = ELIGIBLE + INELIGIBLE, 
+         PERC_ELIGIBLE = ELIGIBLE/Total, 
+         PERC_ELIGIBLE_ = scales::percent(PERC_ELIGIBLE))
+
+hist(tract_summary$PERC_ELIGIBLE)
+table(tract_summary$PERC_ELIGIBLE == 0)
+table(tract_summary$PERC_ELIGIBLE == 0)/nrow(tract_summary)  # FALSE = ELIGIBLE  # TRUE = INELIGIBLE
+
+
+
+# saveRDS(tract_summary, paste0(savepath, "2018_tract_summary_cc_area_perc_elig", "_SEPT23_2020", ".RDS"))
+```
+
+
+
+
+```{r}
+county_summary <- USA_speed_rural_criteria_2018_censusblocks %>% 
+  as.data.frame() %>% 
+  mutate(eligibility = ifelse(disqualification == "not disqual by speed/rural", "ELIGIBLE", "INELIGIBLE")) %>% 
+  group_by(STATEFP10, COUNTYFP10, eligibility) %>% 
+  summarise(area = as.numeric(blockarea))  %>%
+  reshape2::dcast(STATEFP10 + COUNTYFP10 ~ eligibility, value.var = "area", fun.aggregate = sum) %>% 
+  mutate(Total = ELIGIBLE + INELIGIBLE, 
+         PERC_ELIGIBLE = ELIGIBLE/Total, 
+         PERC_ELIGIBLE_ = scales::percent(PERC_ELIGIBLE))
+
+hist(county_summary$PERC_ELIGIBLE)
+table(county_summary$PERC_ELIGIBLE == 0)
+table(county_summary$PERC_ELIGIBLE == 0)/nrow(county_summary)  # FALSE = ELIGIBLE  # TRUE = INELIGIBLE
+
+# saveRDS(county_summary, paste0(savepath, "2018_county_summary_cc_area_perc_elig", "_SEPT23_2020", ".RDS"))
+
+```
+
+
+```{r}
+state_summary <- USA_speed_rural_criteria_2018_censusblocks %>% 
+  as.data.frame() %>% 
+  mutate(eligibility = ifelse(disqualification == "not disqual by speed/rural", "ELIGIBLE", "INELIGIBLE")) %>% 
+  group_by(STATEFP10, eligibility) %>% 
+  summarise(area = as.numeric(blockarea))  %>%
+  reshape2::dcast(STATEFP10  ~ eligibility, value.var = "area", fun.aggregate = sum) %>% 
+  mutate(Total = ELIGIBLE + INELIGIBLE, 
+         PERC_ELIGIBLE = ELIGIBLE/Total, 
+         PERC_ELIGIBLE_ = scales::percent(PERC_ELIGIBLE))
+
+hist(state_summary$PERC_ELIGIBLE)
+table(state_summary$PERC_ELIGIBLE == 0)
+table(state_summary$PERC_ELIGIBLE == 0)/nrow(state_summary)  # FALSE = ELIGIBLE  # TRUE = INELIGIBLE
+
+saveRDS(state_summary, paste0(savepath, "2018_state_summary_cc_area_perc_elig", "_SEPT23_2020", ".RDS"))
+```
+
+
+```{r}
+library(ggplot2)
+state_summary <- state_summary %>% 
+  left_join(fips_, by = c("STATEFP10" = "state_code"))
+state_summary <- state_summary %>% 
+  mutate(PERC_ELIGIBLE__ = paste0(100*(as.numeric(format(PERC_ELIGIBLE, digits = 1))), "%"))
+ggplot(state_summary, aes(x = reorder(state, -PERC_ELIGIBLE), y = PERC_ELIGIBLE)) + 
+  geom_bar(stat = "identity") + 
+  geom_text(stat = "identity", aes(label = reorder(PERC_ELIGIBLE__, -PERC_ELIGIBLE), hjust=0.5, vjust = -1)) + 
+  labs(title = "Percent Eligibility - States") + 
+  xlab(label = "State Abbreviation") + 
+  ylab(label = "Percent Eligibility (% by area)")
+
+```
+
+
+```{r}
+cc_areas_path <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RUS_CC_Shapefiles_April2020/"
+```
+
 
 

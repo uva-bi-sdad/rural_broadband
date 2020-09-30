@@ -1,0 +1,56 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(sf)
+library(leaflet)
+library(tigris)
+```
+
+
+downloaded tigris urban areas and places for 2013
+downloaded FCC 2013 data
+```{r skip1}
+path <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_2013_urbanareas_places/"
+options(tigris_use_cache = TRUE)
+#urban_areas_2018 <- tigris::urban_areas(year = 2018)
+fips <- tigris::fips_codes %>% .$state_code %>% unique
+for (i in 1:length(fips)){
+  print(i)
+  census_places_2018 <- tigris::places(state = fips[i], year = 2018)
+  saveRDS(census_places_2018, paste0(path, "census_2018_places_", fips[i], ".RDS"))
+  print(paste0(path, "census_2018_places_", fips[i], ".RDS"))
+}
+
+
+url <- "https://www.fcc.gov/form477/BroadbandData/Fixed/Dec18/Version%202/US-Fixed-without-Satellite-Dec2018.zip"
+temp <- tempfile()
+download.file(url,temp)
+unlink(temp)
+
+# grab temp pathname and go intoto terminal 
+# ran this to see name of file in zip 
+# unzip -l /tmp/RtmpSdiLsM/file360be78486be5
+# ran this to unzip from terminal:
+# unzip /tmp/RtmpSdiLsM/file360be78486be5 -d /project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/
+
+# fcc_2018 <- read.csv("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fbd_us_without_satellite_dec2018_v2.csv")
+# 
+# fcc_2018_block_max <- fcc_2018 %>%
+#   group_by(StateAbbr, BlockCode) %>%
+#   summarise(MaxAdDown_ = max(MaxAdDown),
+#             MaxAdUp_ = max(MaxAdUp)) %>%
+#   mutate(speed_elig_down = ifelse(MaxAdDown_ >= 10, 0, 1),
+#          speed_elig_up = ifelse(MaxAdUp_ >= 1, 0, 1),
+#          speed_inelig = ifelse(MaxAdDown_ >= 10 & MaxAdUp_ >= 1, 1, 0),
+#          speed_elig = ifelse(MaxAdDown_ >= 10 & MaxAdUp_ >= 1, 0, 1))
+# 
+# saveRDS(fcc_2018_block_max, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fcc_2018_block_maxspdelig.RDS")
+
+```
+
+
