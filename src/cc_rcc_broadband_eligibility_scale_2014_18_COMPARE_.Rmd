@@ -1,0 +1,265 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(dplyr)
+library(ggplot2)
+```
+
+
+
+```{r 2014_FINAL_ELIGIBILITY_DATA}
+# final 2014 eligibility with area
+USA_speed_rural_criteria_2014_censusblocks <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages//USA_2014_FULLCRITERIA_final_criteria_eligibility_wArea_21OCT2020.RDS")
+
+savepath <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages/"
+
+# ReConnect 2014 - BLOCK CT
+rc_14_state_BC <- readRDS(paste0(savepath, "2014_state_summary_block_ct_perc_elig", "_OCT21_2020", ".RDS"))
+rc_14_tract_BC <- readRDS(paste0(savepath, "2014_tract_summary_blockct_perc_elig", "_OCT21_2020", ".RDS"))
+rc_14_county_BC <- readRDS(paste0(savepath, "2014_county_summary_blockct_perc_elig", "_OCT21_2020", ".RDS"))
+
+# ReConnect 2014 - AREA
+rc_14_state_AREA <- readRDS(paste0(savepath, "2014_state_summary_area_perc_elig", "_OCT21_2020", ".RDS"))
+rc_14_county_AREA <- readRDS(paste0(savepath, "2014_county_summary_area_perc_elig", "_OCT21_2020", ".RDS"))
+rc_14_tract_AREA <- readRDS(paste0(savepath, "2014_tract_summary_area_perc_elig", "_OCT21_2020", ".RDS"))
+
+# Community Connect 2014 - BLOCK CT
+cc_14_state_BC <- readRDS(paste0(savepath, "2014_state_summary_cc_block_ct_perc_elig", "_OCT20_2020", ".RDS"))
+cc_14_county_BC <- readRDS(paste0(savepath, "2014_county_summary_cc_blockct_perc_elig", "_OCT20_2020", ".RDS"))
+cc_14_tract_BC <- readRDS(paste0(savepath, "2014_tract_summary_cc_blockct_perc_elig", "_OCT20_2020", ".RDS"))
+
+# Community Connect 2014 - AREA
+cc_14_state_AREA <- readRDS(paste0(savepath, "2014_state_summary_cc_area_perc_elig", "_OCT21_2020", ".RDS"))
+cc_14_county_AREA <- readRDS(paste0(savepath, "2014_county_summary_cc_area_perc_elig", "_OCT21_2020", ".RDS"))
+cc_14_tract_AREA <- readRDS(paste0(savepath, "2014_tract_summary_cc_area_perc_elig", "_OCT21_2020", ".RDS"))
+```
+
+
+```{r 2018_ELIGIBILITY_FINAL_DATA}
+# final 2018 eligibility with area, without missing/duplicated states
+USA_speed_rural_criteria_2018_censusblocks <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages//USA_2018_FULLCRITERIA_final_criteria_eligibility_wArea_21OCT2020.RDS")
+
+savepath <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages/"
+
+# ReConnect 2018 - BLOCK CT
+rc_18_state_BC <- readRDS(paste0(savepath, "2018_state_summary_block_ct_perc_elig", "_OCT21_2020", ".RDS"))
+rc_18_county_BC <- readRDS(paste0(savepath, "2018_county_summary_blockct_perc_elig", "_OCT21_2020", ".RDS"))
+rc_18_tract_BC <- readRDS(paste0(savepath, "2018_tract_summary_blockct_perc_elig", "_OCT21_2020", ".RDS"))
+
+# ReConnect 2018 - AREA
+rc_18_state_AREA <- readRDS(paste0(savepath, "2018_state_summary_area_perc_elig", "_OCT21_2020", ".RDS"))
+rc_18_county_AREA <- readRDS(paste0(savepath, "2018_county_summary_area_perc_elig", "_OCT21_2020", ".RDS"))
+rc_18_tract_AREA <- readRDS(paste0(savepath, "2018_tract_summary_area_perc_elig", "_OCT21_2020", ".RDS"))
+
+# Community Connect 2018 - BLOCK CT
+cc_18_state_BC <- readRDS(paste0(savepath, "2018_state_summary_cc_block_ct_perc_elig", "_OCT21_2020", ".RDS"))
+cc_18_county_BC <- readRDS(paste0(savepath, "2018_county_summary_cc_blockct_perc_elig", "_OCT21_2020", ".RDS"))
+cc_18_tract_BC <- readRDS(paste0(savepath, "2018_tract_summary_cc_blockct_perc_elig", "_OCT21_2020", ".RDS"))
+
+# Community Connect 2018 - AREA
+cc_18_state_AREA <- readRDS(paste0(savepath, "2018_state_summary_cc_area_perc_elig", "_OCT21_2020", ".RDS"))
+cc_18_county_AREA <- readRDS(paste0(savepath, "2018_county_summary_cc_area_perc_elig", "_OCT21_2020", ".RDS"))
+cc_18_tract_AREA <- readRDS(paste0(savepath, "2018_tract_summary_cc_area_perc_elig", "_OCT21_2020", ".RDS"))
+```
+
+```{r}
+fips  <- tigris::fips_codes 
+fips_ <- fips %>% select(state, state_code) %>% distinct()
+```
+
+
+## SUMMARY - STATES
+
+```{r}
+state_eligibilities <- rbind(rc_14_state_BC  %>% select(1, 5) %>% mutate(Year = "2014", Program = "RC", Elig = "BC"), 
+rc_14_state_AREA %>% select(1, 5) %>% mutate(Year = "2014", Program = "RC", Elig = "AREA"), 
+cc_14_state_BC %>% select(1, 5) %>% mutate(Year = "2014", Program = "CC", Elig = "BC"), 
+cc_14_state_AREA %>% select(1, 5) %>% mutate(Year = "2014", Program = "CC", Elig = "AREA"), 
+rc_18_state_BC  %>% select(1, 5) %>% mutate(Year = "2018", Program = "RC", Elig = "BC"),
+rc_18_state_AREA  %>% select(1, 5) %>% mutate(Year = "2018", Program = "RC", Elig = "AREA"), 
+cc_18_state_BC  %>% select(1, 5) %>% mutate(Year = "2018", Program = "CC", Elig = "BC"), 
+cc_18_state_AREA  %>% select(1, 5) %>% mutate(Year = "2018", Program = "CC", Elig = "AREA"))
+
+state_eligibilities <- state_eligibilities %>% left_join(fips_, by = c("STATEFP10" = "state_code"))
+
+va <- state_eligibilities %>% filter(state == "VA")
+
+state_perc_diff_time <- state_eligibilities %>% 
+  reshape2::dcast(STATEFP10 + state + Program + Elig ~ Year, value.var = "PERC_ELIGIBLE") %>%
+  mutate(PERC_CHANGE = `2018` - `2014`) %>%
+  select(-`2014`, -`2018`)
+
+va <- va %>% 
+  left_join(state_perc_diff_time, by = c("STATEFP10", "state", "Program", "Elig")) %>%
+  mutate(PERC_CHANGE = round(PERC_CHANGE, digits = 2))
+
+state_eligibilities <- state_eligibilities %>% 
+  left_join(state_perc_diff_time, by = c("STATEFP10", "state", "Program", "Elig")) %>%
+  mutate(PERC_CHANGE = round(PERC_CHANGE, digits = 2))
+```
+
+
+```{r}
+ggplot(va, aes(x = Program, y = PERC_ELIGIBLE, fill = Year)) + 
+  geom_bar(stat = "identity", position = "identity") + 
+  geom_text(data = va %>% filter(Year == "2018"), stat = "identity", aes(label = reorder(PERC_CHANGE, -PERC_ELIGIBLE), hjust=0.5, vjust = -1)) + 
+  facet_wrap(~Elig) + 
+  labs(title = "Percent Eligibility - State") + 
+  xlab(label = "Virginia") + 
+  ylab(label = "Percent Eligibility ")
+
+```
+
+```{r}
+ggplot(state_eligibilities %>% filter(Elig == "BC"), aes(x = reorder(state, -PERC_ELIGIBLE), y = PERC_ELIGIBLE, fill = Year)) + 
+  geom_bar(stat = "identity", position = "identity") + 
+  geom_text(data = state_eligibilities %>% filter(Year == "2018" & Elig == "BC"), stat = "identity", aes(label = reorder(PERC_CHANGE, -PERC_ELIGIBLE), hjust=0.5, vjust = -1)) +
+  facet_wrap(~Program, ncol = 1) + 
+  labs(title = "Percent Eligibility - States") + 
+  xlab(label = "States") + 
+  ylab(label = "Percent Eligibility (% by block count)")
+```
+
+```{r}
+state_eligibilities %>% filter(state == "VA")
+```
+
+
+
+```{r}
+ggplot(state_eligibilities %>% filter(Elig == "AREA"), aes(x = reorder(state, -PERC_ELIGIBLE), y = PERC_ELIGIBLE, fill = Year)) + 
+  geom_bar(stat = "identity", position = "identity") + 
+  geom_text(data = state_eligibilities %>% filter(Year == "2018" & Elig == "AREA"), stat = "identity", aes(label = reorder(PERC_CHANGE, -PERC_ELIGIBLE), hjust=0.5, vjust = -1)) +
+  facet_wrap(~Program, ncol = 1) + 
+  labs(title = "Percent Eligibility - States") + 
+  xlab(label = "States") + 
+  ylab(label = "Percent Eligibility (% by area)")
+
+```
+
+
+```{r}
+state_eligibilities %>% filter(state == "GU")
+```
+
+```{r}
+state_eligibilities %>% filter(state == "WA")
+```
+
+
+```{r}
+fips_ %>% filter(state == "WA")
+
+WA_2014 <- USA_speed_rural_criteria_2014_censusblocks %>% filter(STATEFP10 == "53")
+WA_2018 <- USA_speed_rural_criteria_2018_censusblocks %>% filter(STATEFP10 == "53")
+
+WA_2014_ <- WA_2014 %>% as.data.frame() %>% count(disqualification3)
+WA_2018_ <- WA_2018 %>% as.data.frame() %>% count(disqualification3)
+
+WA_2014_ <- WA_2014_ %>% mutate(year = 2014,
+                    RC_ELIG = ifelse(disqualification3 == "not disqual by speed/rural", 1, 0), 
+                    CC_ELIG = ifelse(disqualification3 %in% c("not disqual by speed/rural", "caf2 only", "prot borr only", "prot borr only + caf2"), 1, 0))
+
+WA_2018_ <- WA_2018_ %>% mutate(year = 2018,
+                    RC_ELIG = ifelse(disqualification3 == "not disqual by speed/rural", 1, 0), 
+                    CC_ELIG = ifelse(disqualification3 %in% c("not disqual by speed/rural", "caf2 only", "prot borr only", "prot borr only + caf2"), 1, 0))
+
+rbind(WA_2014_ %>% group_by(year, RC_ELIG, CC_ELIG) %>% summarise(sum = sum(n)), WA_2018_ %>% group_by(year, RC_ELIG, CC_ELIG) %>% summarise(sum = sum(n))) #%>% reshape2::dcast(RC_ELIG + CC_ELIG ~ year, value.var = "sum") %>% mutate(diff = `2018`-`2014`)
+
+# ReConnect - 
+# eligible / total
+18378/(170976 + 6220 + 18378) # RC 2014 - 9%
+25447/(161982 + 8145 + 25447)  # RC 2018 - 13%
+(18378 + 6220)/(170976 + 6220 + 18378) # CC 2014 - 12%
+(8145 + 25447)/(161982 + 8145 + 25447) # CC 2018 - 17%
+
+
+WA_2014_ %>% filter(CC_ELIG == 0)
+WA_2018_ %>% filter(CC_ELIG == 0)
+
+change_reasons <- rbind(WA_2014_ %>% select(year, disqualification3, CC_ELIG, n), WA_2018_ %>% select(year, disqualification3, CC_ELIG, n)) %>% 
+  reshape2::dcast(disqualification3 + CC_ELIG ~ year, value.var = "n") %>% 
+  mutate(diff_source = `2018` - `2014`) %>% 
+  filter(abs(diff_source) > 20) %>% 
+  mutate(change_reason = recode_factor(disqualification3, 
+                                       `caf2 only` = "Projects", 
+                                       `not disqual by speed/rural` = "Ignore",
+                                       `prot borr only` = "Projects", 
+                                       `rural only` = "Rural",
+                                       `rural only + caf2` = "Rural",
+                                       `rural only, not in fcc` = "Rural",
+                                       `rural only, not in fcc + caf2` = "Rural",
+                                       `speed only` = "Speed",
+                                       `speed + prot borr` = "Speed",
+                                       `speed only + caf2` = "Speed"
+                                       ))
+
+change_reasons %>% group_by(change_reason) %>% summarise(net_change = sum(diff_source))
+
+```
+
+
+```{r}
+WA_2014 %>% filter(speed_inelig == 1) %>% nrow() # 164,769 blocks were ineligible by speed in 2014
+WA_2018 %>% filter(speed_inelig == 1) %>% nrow() # 147,798 blocks were ineligible by speed in 2018
+
+# CONCLUSION - SPEED isn't the problem
+
+WA_2014 %>% filter(rural_inelg_vec == TRUE) %>% nrow() # 6,207 blocks were ineligible by urbanicity in 2014
+WA_2018 %>% filter(rural_inelg_vec == TRUE) %>% nrow() # 14,184 blocks were ineligible by speed in 2018
+
+WA_2014 %>% filter(protborr_inelg_vec == TRUE|caf2_inelg_vec == TRUE) %>% nrow() # 24,512 blocks were ineligible by urbanicity in 2014
+WA_2018 %>% filter(protborr_inelg_vec == TRUE|caf2_inelg_vec == TRUE) %>% nrow() # 24,512 blocks were ineligible by speed in 2018
+
+# CONCLUSION - More places in Washington became urban and there are prot borr & caf 2 projects
+# note - the block differences can overlap between these reasons
+```
+
+
+```{r}
+plot_wa_2014_urban <- WA_2014 %>% filter(rural_inelg_vec == TRUE) 
+plot_wa_2018_urban <- WA_2018 %>% filter(rural_inelg_vec == TRUE) 
+
+WA_2014
+
+library(leaflet)
+
+leaflet(plot_wa_2018_urban) %>%
+  addTiles() %>% 
+  addPolygons() %>% 
+  addPolygons(data = plot_wa_2014_urban, color = "#ff0000")
+```
+
+
+
+
+```{r}
+leaflet(plot_wa_2018_urban) %>%
+  addTiles() %>% 
+  addPolygons() %>% 
+  addPolygons(data = plot_wa_2014_urban, color = "#ff0000")
+```
+
+
+
+```{r}
+leaflet(plot_wa_2018_urban) %>%
+  addTiles() %>% 
+  addPolygons() 
+```
+
+
+
+
+```{r}
+leaflet(plot_wa_2014_urban) %>%
+  addTiles() %>% 
+  addPolygons(color = "#ff0000") 
+```
+
+
+
