@@ -1,0 +1,216 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r}
+library(sf)
+library(dplyr)
+library(leaflet)
+```
+
+
+```{r}
+
+# WA_2014 <- USA_speed_rural_criteria_2014_censusblocks %>% filter(as.numeric(STATEFP10) == 53)
+# saveRDS(WA_2014, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages//WA_2014_FULLCRITERIA_final_criteria_eligibility_wArea_21OCT2020.RDS")
+# WA_2018 <- USA_speed_rural_criteria_2018_censusblocks %>% filter(as.numeric(STATEFP10) == 53)
+# saveRDS(WA_2018, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages//WA_2018_FULLCRITERIA_final_criteria_eligibility_wArea_21OCT2020.RDS")
+
+WA_2014 <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages//WA_2014_FULLCRITERIA_final_criteria_eligibility_wArea_21OCT2020.RDS")
+
+WA_2018 <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages//WA_2018_FULLCRITERIA_final_criteria_eligibility_wArea_21OCT2020.RDS")
+```
+
+## Eligible Areas - from final dataset
+
+```{r}
+
+# wa14_rc_ineligible <- WA_2014 %>% filter(disqualification3 != "not disqual by speed/rural")
+# wa18_rc_ineligible <- WA_2018 %>% filter(disqualification3 != "not disqual by speed/rural")
+
+wa14_rc_eligible <- WA_2014 %>% filter(disqualification3 == "not disqual by speed/rural")
+wa18_rc_eligible <- WA_2018 %>% filter(disqualification3 == "not disqual by speed/rural")
+
+
+leaflet(wa14_rc_eligible) %>%
+  addTiles() %>% 
+  addPolygons(color = "#ff0000") 
+
+leaflet(wa18_rc_eligible) %>%
+  addTiles() %>% 
+  addPolygons() 
+```
+
+## Urban Criteria
+
+```{r}
+path <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_2014_urbanareas_places/"
+rurality_files <- list.files(path)
+rurality_files[c(48, 57)]
+wa_census_places_2014 <- readRDS(paste0(path, rurality_files[48]))
+wa_urban_areas_2014 <- readRDS(paste0(path, rurality_files[57])) %>% filter(stringr::str_detect(NAME10, "WA$"))
+
+leaflet(wa_census_places_2014) %>%
+  addTiles() %>% 
+  addPolygons(color = "#ff0000") %>%
+  addPolygons(data = wa_urban_areas_2014, color = "#ff0000")
+```
+
+
+```{r}
+path <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_2018_urbanareas_places/"
+rurality_files <- list.files(path)
+rurality_files[c(48, 57)]
+wa_census_places_2018 <- readRDS(paste0(path, rurality_files[48]))
+wa_urban_areas_2018 <- readRDS(paste0(path, rurality_files[57])) %>% filter(stringr::str_detect(NAME10, "WA$"))
+
+leaflet(wa_census_places_2018) %>%
+  addTiles() %>% 
+  addPolygons() %>%
+  addPolygons(data = wa_urban_areas_2018)
+```
+
+## Speed Criteria
+
+2014 - 
+
+    * WA blocks x FCC block max
+    * FCC original 
+
+
+```{r}
+geo_folder <- "/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS/"
+geo_paths <- list.files(geo_folder)
+shps_e_53 <- readRDS(paste0(geo_folder, geo_paths[42]))
+
+fcc_2014_block_max <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fcc_2014_block_maxspdelig.RDS")
+```
+
+
+```{r}
+fcc_2014 <- read.csv("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fbd_us_without_satellite_dec2014_v3.csv")
+```
+
+
+
+```{r}
+wa_14_speed <- fcc_2014_block_max %>% filter(StateAbbr == "WA")
+shps_e_53 <- shps_e_53 %>% mutate(GEOID10_2 = paste0(STATEFP10, COUNTYFP10, TRACTCE10, BLOCKCE10))
+shps_e_53$GEOID10_2 <- as.double(shps_e_53$GEOID10_2)
+wa_14_speed_2 <- shps_e_53 %>% inner_join(wa_14_speed, by = c("GEOID10_2" = "BlockCode"))
+
+leaflet(wa_14_speed_2 %>% filter(speed_elig == 1)) %>%
+  addTiles() %>% 
+  addPolygons(color = "#ff0000") 
+
+```
+
+2018 - 
+
+    * WA blocks x FCC block max
+    * FCC original 
+    
+```{r}
+fcc_2018_block_max <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fcc_2018_block_maxspdelig.RDS")
+```
+
+```{r}
+fcc_2018 <- read.csv("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fbd_us_without_satellite_dec2018_v2.csv")
+```
+
+```{r}
+wa_18_speed <- fcc_2018_block_max %>% filter(StateAbbr == "WA")
+wa_18_speed_2 <- shps_e_53 %>% inner_join(wa_18_speed, by = c("GEOID10_2" = "BlockCode"))
+
+leaflet(wa_18_speed_2 %>% filter(speed_elig == 1)) %>%
+  addTiles() %>% 
+  addPolygons() 
+```
+
+```{r}
+# fcc_2014 %>% filter(StateAbbr == "WA") %>% head(100) %>% 
+#   group_by(StateAbbr, BlockCode) %>%
+#   summarise(MaxAdDown_ = max(MaxAdDown),
+#             MaxAdUp_ = max(MaxAdUp))
+
+fcc_2014 %>% filter(BlockCode == 530330081002027) 
+
+fcc_2014 %>% filter(BlockCode == 530330081002027)  %>% 
+  group_by(StateAbbr, BlockCode) %>%
+  summarise(MaxAdDown_ = max(MaxAdDown),
+            MaxAdUp_ = max(MaxAdUp))
+
+fcc_2018 %>% filter(BlockCode == 530330081002027)
+
+fcc_2018 %>% filter(BlockCode == 530330081002027)  %>% 
+  group_by(StateAbbr, BlockCode) %>%
+  summarise(MaxAdDown_ = max(MaxAdDown),
+            MaxAdUp_ = max(MaxAdUp))
+```
+
+
+one possible explanation - blocks (like those over water?)  were not reported as having providers in 2014, but in 2018, someone reported low coverage
+
+```{r}
+# 530330081002041 this is a park
+
+fcc_2014 %>% filter(BlockCode == 530330081002041) %>% select(ProviderName, )
+
+fcc_2014 %>% filter(BlockCode == 530330081002041)  %>% 
+  group_by(StateAbbr, BlockCode) %>%
+  summarise(MaxAdDown_ = max(MaxAdDown),
+            MaxAdUp_ = max(MaxAdUp))
+
+fcc_2018 %>% filter(BlockCode == 530330081002041)
+
+fcc_2018 %>% filter(BlockCode == 530330081002041)  %>% 
+  group_by(StateAbbr, BlockCode) %>%
+  summarise(MaxAdDown_ = max(MaxAdDown),
+            MaxAdUp_ = max(MaxAdUp))
+
+```
+
+```{r}
+# 530330081001047 - this is the pier
+
+fcc_2014 %>% filter(BlockCode == 530330081001047) 
+
+fcc_2014 %>% filter(BlockCode == 530330081001047)  %>% 
+  group_by(StateAbbr, BlockCode) %>%
+  summarise(MaxAdDown_ = max(MaxAdDown),
+            MaxAdUp_ = max(MaxAdUp))
+
+fcc_2018 %>% filter(BlockCode == 530330081001047)
+
+fcc_2018 %>% filter(BlockCode == 530330081001047)  %>% 
+  group_by(StateAbbr, BlockCode) %>%
+  summarise(MaxAdDown_ = max(MaxAdDown),
+            MaxAdUp_ = max(MaxAdUp))
+```
+
+
+
+```{r}
+protborr <- sf::st_read("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/rus_broadband_servicearea/ProtectedBorrowers04222019.shp")
+
+caf2auctionwinners <- sf::st_read("/project/biocomplexity/sdad/projects_data/usda/bb/original/Protected_bb_borrower_service_areas/Auction903_April2019.shp")
+
+protborr <- protborr %>% st_transform(st_crs(shps_e_53))
+prot_borr_53 <- st_intersects(protborr, shps_e_53)
+protborr <- protborr %>% mutate(WA_state = prot_borr_53 %>% lengths >0)
+
+caf2auctionwinners <- caf2auctionwinners %>% st_transform(st_crs(shps_e_53))
+caf2auctionwinners_53 <- st_intersects(caf2auctionwinners, shps_e_53)
+caf2auctionwinners <- caf2auctionwinners %>% mutate(WA_state = caf2auctionwinners_53 %>% lengths >0)
+
+
+leaflet(protborr %>% filter(WA_state == TRUE)) %>%
+  addTiles() %>% 
+  addPolygons(col = "#ffa500") %>%
+  addPolygons(data = caf2auctionwinners %>% filter(WA_state == TRUE), col = "#ffa500")
+```
+
+
+
+

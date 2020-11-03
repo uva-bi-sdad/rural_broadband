@@ -12,25 +12,30 @@ library(sf)
 ```
 
 
-downloaded tigris urban areas and places for 2013
-downloaded FCC 2013 data
-```{r skip1}
-path <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_2014_urbanareas_places/"
-options(tigris_use_cache = TRUE)
-# urban_areas_2014 <- tigris::urban_areas(year = 2014)
-# saveRDS(urban_areas_2014, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_2014_urbanareas_places/urban_areas_2014.RDS")
-fips <- tigris::fips_codes %>% .$state_code %>% unique
-for (i in 57:length(fips)){
-  print(i)
-  census_places_2014 <- tigris::places(state = fips[i], year = 2014)
-  saveRDS(census_places_2014, paste0(path, "census_2014_places_", fips[i], ".RDS"))
-  print(paste0(path, "census_2014_places_", fips[i], ".RDS"))
-}
+NIXED - downloaded tigris urban areas and places for 2013
+NIXED - downloaded FCC 2013 data
 
-url <- "http://transition.fcc.gov/form477/BroadbandData/Fixed/Dec14/Version%203/US-Fixed-without-Satellite-Dec2014.zip"
-temp <- tempfile()
-download.file(url,temp)
-unlink(temp)
+rurality now from Reconnect website
+```{r skip1}
+# path <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_2014_urbanareas_places/"
+# options(tigris_use_cache = TRUE)
+# # urban_areas_2014 <- tigris::urban_areas(year = 2014)
+# # saveRDS(urban_areas_2014, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_2014_urbanareas_places/urban_areas_2014.RDS")
+# fips <- tigris::fips_codes %>% .$state_code %>% unique
+# for (i in 57:length(fips)){
+#   print(i)
+#   census_places_2014 <- tigris::places(state = fips[i], year = 2014)
+#   saveRDS(census_places_2014, paste0(path, "census_2014_places_", fips[i], ".RDS"))
+#   print(paste0(path, "census_2014_places_", fips[i], ".RDS"))
+# }
+# 
+# url <- "http://transition.fcc.gov/form477/BroadbandData/Fixed/Dec14/Version%203/US-Fixed-without-Satellite-Dec2014.zip"
+# temp <- tempfile()
+# download.file(url,temp)
+# unlink(temp)
+
+
+plot(rurality$geometry)
 
 # grab temp pathname and go intoto terminal 
 # ran this to see name of file in zip 
@@ -41,14 +46,14 @@ unlink(temp)
 fcc_2014 <- read.csv("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fbd_us_without_satellite_dec2014_v3.csv")
 
 #threshold of 10/1
-fcc_2014_block_max <- fcc_2014 %>%
-  group_by(StateAbbr, BlockCode) %>%
-  summarise(MaxAdDown_ = max(MaxAdDown),
-            MaxAdUp_ = max(MaxAdUp)) %>%
-  mutate(speed_elig_down = ifelse(MaxAdDown_ >= 10, 0, 1),
-         speed_elig_up = ifelse(MaxAdUp_ >= 1, 0, 1),
-         speed_inelig = ifelse(MaxAdDown_ >= 10 & MaxAdUp_ >= 1, 1, 0),
-         speed_elig = ifelse(MaxAdDown_ >= 10 & MaxAdUp_ >= 1, 0, 1))
+# fcc_2014_block_max <- fcc_2014 %>%
+#   group_by(StateAbbr, BlockCode) %>%
+#   summarise(MaxAdDown_ = max(MaxAdDown),
+#             MaxAdUp_ = max(MaxAdUp)) %>%
+#   mutate(speed_elig_down = ifelse(MaxAdDown_ >= 10, 0, 1),
+#          speed_elig_up = ifelse(MaxAdUp_ >= 1, 0, 1),
+#          speed_inelig = ifelse(MaxAdDown_ >= 10 & MaxAdUp_ >= 1, 1, 0),
+#          speed_elig = ifelse(MaxAdDown_ >= 10 & MaxAdUp_ >= 1, 0, 1))
 #threshold of 4/1
 fcc_2014_block_max <- fcc_2014 %>%
   group_by(StateAbbr, BlockCode) %>%
@@ -59,45 +64,61 @@ fcc_2014_block_max <- fcc_2014 %>%
          speed_inelig = ifelse(MaxAdDown_ >= 4 & MaxAdUp_ >= 1, 1, 0),
          speed_elig = ifelse(MaxAdDown_ >= 4 & MaxAdUp_ >= 1, 0, 1))
 
+#threshold of 768/200 kbps ??
+
+
 # saveRDS(fcc_2014_block_max, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fcc_2014_block_maxspdelig.RDS")
-saveRDS(fcc_2014_block_max, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fcc_2014_block_maxspdelig_threshold_4_1.RDS")
+# saveRDS(fcc_2014_block_max, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fcc_2014_block_maxspdelig_threshold_4_1.RDS")
 
 ```
 
-read in tigris urban areas and places for 2018
+```{r}
+table(fcc_2014$MaxAdUp)
+table(fcc_2014$MaxAdDown)
+```
+
+
+```{r}
+rurality <- sf::st_read("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL/RD_BROADBAND_IELG_PRODUCTION.shp")
+
+```
+
+
+NIXED - read in tigris urban areas and places for 2018
 ```{r run0}
 ## RURALITY 
-path <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_2014_urbanareas_places/"
-rurality_files <- list.files(path)
-urbanareas2014 <- readRDS(paste0(path, rurality_files[57]))
-rurality_files <- rurality_files[1:56]
-rurality_files <- paste0(path, rurality_files)
-data_l <- as.list(rurality_files)
-shps <- lapply(data_l, function(x) readRDS(x))
-shps_e <- do.call(rbind, shps)
-
-## CENSUS
-
-### clean environment
-rm(rurality_files, data_l, shps)
+# path <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_2014_urbanareas_places/"
+# rurality_files <- list.files(path)
+# urbanareas2014 <- readRDS(paste0(path, rurality_files[57]))
+# rurality_files <- rurality_files[1:56]
+# rurality_files <- paste0(path, rurality_files)
+# data_l <- as.list(rurality_files)
+# shps <- lapply(data_l, function(x) readRDS(x))
+# shps_e <- do.call(rbind, shps)
+# 
+# ## CENSUS
+# 
+# ### clean environment
+# rm(rurality_files, data_l, shps)
 ```
 
-get population per census places in 2010
+NIXED - get population per census places in 2010
 ```{r run1 }
 # Sys.setenv("ed8973afe8a22958b77ffdb8547c93c3cae1d2fc")
-tidycensus::census_api_key("ed8973afe8a22958b77ffdb8547c93c3cae1d2fc") 
-us_pop_2010 <- tidycensus::get_decennial(geography="place", variables="P001001", 
-                                         year=2010,  cache_table=TRUE)
+# tidycensus::census_api_key("ed8973afe8a22958b77ffdb8547c93c3cae1d2fc") 
+# us_pop_2010 <- tidycensus::get_decennial(geography="place", variables="P001001", 
+#                                          year=2010,  cache_table=TRUE)
 
 ```
 
 FCC - max speed per block
 
 ```{r}
-fcc_2014_block_max <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fcc_2014_block_maxspdelig.RDS")
+# fcc_2014_block_max <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fcc_2014_block_maxspdelig.RDS")
+fcc_2014_block_max <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fcc_2014_block_maxspdelig_threshold_4_1.RDS")
 ```
 
-shapes_e - all census blocks in uS *basemap
+shapes_e - all census blocks in US *basemap
 
 ```{r}
 fips  <- tigris::fips_codes 
@@ -152,22 +173,22 @@ joinbystate_res %>% select(-n) %>% count(state)
 fcccehckbystate_res
 ```
 
-## Filter rurality datasets by population 
+NIXED - ## Filter rurality datasets by population 
 
 ```{r run5}
-rurality_places <- shps_e %>% 
-  transmute(SET = "places", GEOID10 = GEOID, 
-                                  NAME10 = NAME, NAMELSAD10 = NAMELSAD, 
-                                  LSAD10 = LSAD, geometry)
-
-rurality_areas <- urbanareas2014 %>% 
-  transmute(SET = "areas", GEOID10, NAME10, 
-                                  NAMELSAD10, LSAD10, geometry)
-
-rurality_USA <- rbind(rurality_places, rurality_areas) %>% left_join(us_pop_2010, by = c("GEOID10" = "GEOID"))
-
-rurality_USA_elig_dontuse <- rurality_USA %>% filter(value < 20000)
-rurality_USA_inelig <- rurality_USA %>% filter(SET == "areas" | value >= 20000)  
+# rurality_places <- shps_e %>% 
+#   transmute(SET = "places", GEOID10 = GEOID, 
+#                                   NAME10 = NAME, NAMELSAD10 = NAMELSAD, 
+#                                   LSAD10 = LSAD, geometry)
+# 
+# rurality_areas <- urbanareas2014 %>% 
+#   transmute(SET = "areas", GEOID10, NAME10, 
+#                                   NAMELSAD10, LSAD10, geometry)
+# 
+# rurality_USA <- rbind(rurality_places, rurality_areas) %>% left_join(us_pop_2010, by = c("GEOID10" = "GEOID"))
+# 
+# rurality_USA_elig_dontuse <- rurality_USA %>% filter(value < 20000)
+# rurality_USA_inelig <- rurality_USA %>% filter(SET == "areas" | value >= 20000)  
 
 # rm(rurality_places, rurality_areas, rurality_USA, rurality_USA_elig_dontuse)
   
@@ -186,7 +207,16 @@ fcc_2014_USA_inelig <- shapes_e_fcc %>% filter(speed_elig != 1)
 # fcc_2014_USA_inelig %>% nrow()
 
 #### ST INTERSECT 
-fcc_2014_USA_inelig_by_rurality_VECTOR <- st_intersects(fcc_2014_USA_elig, rurality_USA_inelig) 
+# fcc_2014_USA_inelig_by_rurality_VECTOR <- st_intersects(fcc_2014_USA_elig, rurality_USA_inelig) 
+
+rurality <- rurality %>% st_transform(st_crs(fcc_2014_USA_elig))
+x <- Sys.time()
+TEST <- st_intersects(head(fcc_2014_USA_elig), rurality) 
+y <- Sys.time()
+z <- as.numeric(y-x)/nrow(head(fcc_2014_USA_elig))
+((z * nrow(fcc_2014_USA_elig))/60)/60
+
+fcc_2014_USA_inelig_by_rurality_VECTOR <- st_intersects(fcc_2014_USA_elig, rurality) 
 
  ###
 # fcc_2018_USA_inelig_by_rurality_VECTOR <- readRDS("~/fcc_2018_USA_inelig_by_rurality_VECTOR_03SEPT2020.RDS")
@@ -206,7 +236,7 @@ USA_speed_rural_criteria_2014 <- rbind(fcc_2014_USA_elig, fcc_2014_USA_inelig)
 table(USA_speed_rural_criteria_2014$disqualification, useNA = "ifany")
 table(USA_speed_rural_criteria_2014$rural_inelg_vec, useNA = "always")
 
-# saveRDS(USA_speed_rural_criteria_2014, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_speed_urban_criteria_eligibility_RES_19OCT2020.RDS")
+saveRDS(USA_speed_rural_criteria_2014, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_speed_urban_criteria_eligibility_newthres_RES_27OCT2020.RDS")
 
 USA_speed_rural_criteria_2014 <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_speed_urban_criteria_eligibility_RES_19OCT2020.RDS")
 
@@ -240,7 +270,7 @@ shapes_not_listed_in_fcc <- shapes_not_listed_in_fcc  %>% mutate(disqualificatio
 table(shapes_not_listed_in_fcc$rural_inelg_vec)
 table(shapes_not_listed_in_fcc$disqualification)
 
-saveRDS(shapes_not_listed_in_fcc, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_censusmissing_speed_urban_criteria_eligibility_RES_19OCT2020.RDS")
+saveRDS(shapes_not_listed_in_fcc, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_censusmissing_speed_urban_criteria_eligibility_newthres_RES_27OCT2020.RDS")
 
 USA_speed_rural_criteria_2014_censusblocks <- rbind(USA_speed_rural_criteria_2014, 
                                                     shapes_not_listed_in_fcc %>% 
@@ -256,7 +286,7 @@ USA_speed_rural_criteria_2014_censusblocks <- rbind(USA_speed_rural_criteria_201
                                                              state = NA
                                                              ))
 
-saveRDS(USA_speed_rural_criteria_2014_censusblocks, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_FULLSET_speed_urban_criteria_eligibility_RES_19OCT2020.RDS")
+saveRDS(USA_speed_rural_criteria_2014_censusblocks, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_FULLSET_speed_urban_criteria_eligibility_newthres_RES_27OCT2020.RDS")
 
 USA_speed_rural_criteria_2014_censusblocks <- readRDS( "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_FULLSET_speed_urban_criteria_eligibility_RES_19OCT2020.RDS")
 
@@ -287,9 +317,9 @@ USA_speed_rural_criteria_2014_censusblocks <- USA_speed_rural_criteria_2014_cens
 
 table(USA_speed_rural_criteria_2014_censusblocks$disqualification2)
 
-# saveRDS(USA_speed_rural_criteria_2014_censusblocks, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_FULLSET_protborrs_speed_urban_criteria_eligibility_RES_19OCTT2020.RDS")
+# saveRDS(USA_speed_rural_criteria_2014_censusblocks, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_FULLSET_protborrs_speed_urban_criteria_eligibility_newthres_RES_27OCTT2020.RDS")
 
-USA_speed_rural_criteria_2014_censusblocks <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_FULLSET_protborrs_speed_urban_criteria_eligibility_RES_19OCTT2020.RDS")
+USA_speed_rural_criteria_2014_censusblocks <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_FULLSET_protborrs_speed_urban_criteria_eligibility_newthres_RES_27OCTT2020.RDS")
 
 caf2auctionwinners <- sf::st_read("/project/biocomplexity/sdad/projects_data/usda/bb/original/Protected_bb_borrower_service_areas/Auction903_April2019.shp")
 
@@ -311,9 +341,9 @@ USA_speed_rural_criteria_2014_censusblocks  <- USA_speed_rural_criteria_2014_cen
 
 table(USA_speed_rural_criteria_2014_censusblocks$disqualification3)
 
-# saveRDS(USA_speed_rural_criteria_2014_censusblocks, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_FULLCRITERIA_speed_urban_criteria_eligibility_RES_19OCT2020.RDS")
+saveRDS(USA_speed_rural_criteria_2014_censusblocks, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_FULLCRITERIA_speed_urban_criteria_eligibility_newthresh_RES_27OCT2020.RDS")
 
-USA_speed_rural_criteria_2014_censusblocks <- readRDS( "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_FULLCRITERIA_speed_urban_criteria_eligibility_RES_19OCT2020.RDS")
+USA_speed_rural_criteria_2014_censusblocks <- readRDS( "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_FULLCRITERIA_speed_urban_criteria_eligibility_newthresh_RES_27OCT2020.RDS")
 ```
 
 ###################
@@ -332,6 +362,10 @@ nrow(USA_speed_rural_criteria_2014_censusblocks)
 ```
 
 ```{r}
+
+savepath <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages/"
+
+
 tract_summary <- USA_speed_rural_criteria_2014_censusblocks %>% as.data.frame() %>% count(STATEFP10, COUNTYFP10, TRACTCE10, disqualification3) %>% 
   mutate(eligibility = ifelse(disqualification3 == "not disqual by speed/rural", "ELIGIBLE", "INELIGIBLE")) %>% 
   select(-disqualification3) %>% 
@@ -342,7 +376,7 @@ tract_summary <- USA_speed_rural_criteria_2014_censusblocks %>% as.data.frame() 
          PERC_ELIGIBLE = ELIGIBLE/Total, 
          PERC_ELIGIBLE_ = scales::percent(PERC_ELIGIBLE))
 
-# saveRDS(tract_summary, paste0(savepath, "2014_tract_summary_blockct_perc_elig", "_OCT21_2020", ".RDS"))
+# saveRDS(tract_summary, paste0(savepath, "2014_tract_summary_blockct_perc_elig_newthresh_", "_OCT27_2020", ".RDS"))
 
 county_summary <- USA_speed_rural_criteria_2014_censusblocks %>% as.data.frame() %>% count(STATEFP10, COUNTYFP10, disqualification3) %>% 
   mutate(eligibility = ifelse(disqualification3 == "not disqual by speed/rural", "ELIGIBLE", "INELIGIBLE")) %>% 
@@ -355,7 +389,7 @@ county_summary <- USA_speed_rural_criteria_2014_censusblocks %>% as.data.frame()
          PERC_ELIGIBLE_ = scales::percent(PERC_ELIGIBLE))
 
 
-# saveRDS(county_summary, paste0(savepath, "2014_county_summary_blockct_perc_elig", "_OCT21_2020", ".RDS"))
+# saveRDS(county_summary, paste0(savepath, "2014_county_summary_blockct_perc_elig_newthresh_", "_OCT27_2020", ".RDS"))
 
 state_summary <- USA_speed_rural_criteria_2014_censusblocks %>% as.data.frame() %>% count(STATEFP10, disqualification3) %>% 
   mutate(eligibility = ifelse(disqualification3 == "not disqual by speed/rural", "ELIGIBLE", "INELIGIBLE")) %>% 
@@ -368,7 +402,7 @@ state_summary <- USA_speed_rural_criteria_2014_censusblocks %>% as.data.frame() 
          PERC_ELIGIBLE_ = scales::percent(PERC_ELIGIBLE))
 
 
-# saveRDS(state_summary, paste0(savepath, "2014_state_summary_block_ct_perc_elig", "_OCT21_2020", ".RDS"))
+# saveRDS(state_summary, paste0(savepath, "2014_state_summary_block_ct_perc_elig_newthresh_", "_OCT27_2020", ".RDS"))
 
 ```
 
