@@ -34,9 +34,6 @@ rurality now from Reconnect website
 # download.file(url,temp)
 # unlink(temp)
 
-
-plot(rurality$geometry)
-
 # grab temp pathname and go intoto terminal 
 # ran this to see name of file in zip 
 # unzip -l /tmp/RtmpwK6I3G/file33274b60567b
@@ -84,30 +81,31 @@ rurality <- sf::st_read("/project/biocomplexity/sdad/projects_data/project_data/
 ```
 
 
+
 NIXED - read in tigris urban areas and places for 2018
 ```{r run0}
 ## RURALITY 
-# path <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_2014_urbanareas_places/"
-# rurality_files <- list.files(path)
-# urbanareas2014 <- readRDS(paste0(path, rurality_files[57]))
-# rurality_files <- rurality_files[1:56]
-# rurality_files <- paste0(path, rurality_files)
-# data_l <- as.list(rurality_files)
-# shps <- lapply(data_l, function(x) readRDS(x))
-# shps_e <- do.call(rbind, shps)
-# 
-# ## CENSUS
-# 
-# ### clean environment
-# rm(rurality_files, data_l, shps)
+path <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/census_2014_urbanareas_places/"
+rurality_files <- list.files(path)
+urbanareas2014 <- readRDS(paste0(path, rurality_files[57]))
+rurality_files <- rurality_files[1:56]
+rurality_files <- paste0(path, rurality_files)
+data_l <- as.list(rurality_files)
+shps <- lapply(data_l, function(x) readRDS(x))
+shps_e <- do.call(rbind, shps)
+
+## CENSUS
+
+### clean environment
+rm(rurality_files, data_l, shps)
 ```
 
 NIXED - get population per census places in 2010
 ```{r run1 }
 # Sys.setenv("ed8973afe8a22958b77ffdb8547c93c3cae1d2fc")
-# tidycensus::census_api_key("ed8973afe8a22958b77ffdb8547c93c3cae1d2fc") 
-# us_pop_2010 <- tidycensus::get_decennial(geography="place", variables="P001001", 
-#                                          year=2010,  cache_table=TRUE)
+tidycensus::census_api_key("ed8973afe8a22958b77ffdb8547c93c3cae1d2fc")
+us_pop_2010 <- tidycensus::get_decennial(geography="place", variables="P001001",
+                                         year=2010,  cache_table=TRUE)
 
 ```
 
@@ -175,22 +173,28 @@ fcccehckbystate_res
 
 NIXED - ## Filter rurality datasets by population 
 
-```{r run5}
-# rurality_places <- shps_e %>% 
-#   transmute(SET = "places", GEOID10 = GEOID, 
-#                                   NAME10 = NAME, NAMELSAD10 = NAMELSAD, 
-#                                   LSAD10 = LSAD, geometry)
-# 
-# rurality_areas <- urbanareas2014 %>% 
-#   transmute(SET = "areas", GEOID10, NAME10, 
-#                                   NAMELSAD10, LSAD10, geometry)
-# 
-# rurality_USA <- rbind(rurality_places, rurality_areas) %>% left_join(us_pop_2010, by = c("GEOID10" = "GEOID"))
-# 
-# rurality_USA_elig_dontuse <- rurality_USA %>% filter(value < 20000)
-# rurality_USA_inelig <- rurality_USA %>% filter(SET == "areas" | value >= 20000)  
+```{r}
+shps_e %>% head()
+urbanareas2014
+```
 
-# rm(rurality_places, rurality_areas, rurality_USA, rurality_USA_elig_dontuse)
+
+```{r run5}
+rurality_places <- shps_e %>%
+  transmute(SET = "places", GEOID10 = GEOID,
+                                  NAME10 = NAME, NAMELSAD10 = NAMELSAD,
+                                  LSAD10 = LSAD, geometry)
+
+rurality_areas <- urbanareas2014 %>%
+  transmute(SET = "areas", GEOID10, NAME10,
+                                  NAMELSAD10, LSAD10, geometry)
+
+rurality_USA <- rbind(rurality_places, rurality_areas) %>% left_join(us_pop_2010, by = c("GEOID10" = "GEOID"))
+
+rurality_USA_elig_dontuse <- rurality_USA %>% filter(value < 20000)
+rurality_USA_inelig <- rurality_USA %>% filter(SET == "areas" | value >= 20000)
+
+rm(rurality_places, rurality_areas, rurality_USA, rurality_USA_elig_dontuse)
   
 ```
 
