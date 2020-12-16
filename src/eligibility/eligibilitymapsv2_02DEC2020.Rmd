@@ -8,46 +8,40 @@ knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 ```
 
+```{r}
+# saveRDS(usa_blocks_speed_rural_projects_final_2014, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_final_eligibility_sf_08DEC2020v4.RDS")
+# saveRDS(usa_blocks_speed_rural_projects_final_2018, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2018_final_eligibility_sf_08DEC2020v4.RDS")
+
+```
+
 
 ```{r cars}
-# usa_blocks_speed_rural_projects_final_2014 <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_final_eligibility_sf_24NOV2020v3.RDS")
-# 
+# usa_blocks_speed_rural_projects_final_2014 <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_final_eligibility_sf_08DEC2020v4.RDS")
 # map_14_df <- usa_blocks_speed_rural_projects_final_2014 %>% data.frame()
-# 
 # map_14_df$geometry <- NULL
+# saveRDS(map_14_df, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_final_eligibility_dfnogeo_07DEC2020v3.RDS")
 # 
-# saveRDS(map_14_df, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_final_eligibility_dfnogeo_01DEC2020v2.RDS")
-
-# map_14_df <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_final_eligibility_dfnogeo_01DEC2020v2.RDS")
-# 
+# map_14_df <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_final_eligibility_dfnogeo_07DEC2020v3.RDS")
 # block_pop_2010 <- read.csv("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/population_by_census_block_2010 (2).csv")
 # block_pop_2010$GEOID <- ifelse(nchar(block_pop_2010$GEOID) < 15, paste0(0, block_pop_2010$GEOID), block_pop_2010$GEOID)
-# 
 # map_14_df_pop <- map_14_df %>% left_join(block_pop_2010 %>% transmute(GEOID  = as.factor(GEOID), pop = value), by = c("GEOID10" = "GEOID"))
-# 
-# saveRDS(map_14_df_pop, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_final_eligibility_dfnogeopop_03DEC2020v3.RDS")
+# saveRDS(map_14_df_pop, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_final_eligibility_dfnogeopop_07DEC2020v4.RDS")
 
-map_14_df_pop <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_final_eligibility_dfnogeopop_03DEC2020v3.RDS")
+map_14_df_pop <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_final_eligibility_dfnogeopop_07DEC2020v4.RDS")
 
 # 
 # rm(usa_blocks_speed_rural_projects_final_2014)
 
-# usa_blocks_speed_rural_projects_final_2018 <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2018_final_eligibility_sf_24NOV2020v3.RDS")
-#
-#
+# usa_blocks_speed_rural_projects_final_2018 <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2018_final_eligibility_sf_08DEC2020v4.RDS")
 # map_18_df <- usa_blocks_speed_rural_projects_final_2018 %>% data.frame()
-#
 # map_18_df$geometry <- NULL
-
 # saveRDS(map_18_df, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2018_final_eligibility_dfnogeo_01DEC2020v2.RDS")
-
-# map_18_df <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2018_final_eligibility_dfnogeo_01DEC2020v2.RDS")
 # 
+# map_18_df <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2018_final_eligibility_dfnogeo_01DEC2020v2.RDS")
 # map_18_df_pop <- map_18_df %>% left_join(block_pop_2010 %>% transmute(GEOID  = as.factor(GEOID), pop = value), by = c("GEOID10" = "GEOID"))
+# saveRDS(map_18_df_pop, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2018_final_eligibility_dfnogeopop_08DEC2020v4.RDS")
 
-# saveRDS(map_18_df_pop, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2018_final_eligibility_dfnogeopop_03DEC2020v3.RDS")
-
-map_18_df_pop <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2018_final_eligibility_dfnogeopop_03DEC2020v3.RDS")
+map_18_df_pop <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2018_final_eligibility_dfnogeopop_08DEC2020v4.RDS")
 
 # rm(usa_blocks_speed_rural_projects_final_2018)
 
@@ -57,8 +51,8 @@ map_18_df_pop <- readRDS("/project/biocomplexity/sdad/projects_data/project_data
 # 2014 map
 
 ```{r}
-states <- unique(map_14_df$StateAbbr)
-states <- unique(map_14_df$STATEFP10)
+# states <- unique(map_14_df$StateAbbr)
+states <- unique(map_14_df_pop$STATEFP10)
 county_map <- tigris::counties(state = states)
 
 rc_percelig_pop <- map_14_df_pop %>% 
@@ -140,7 +134,7 @@ leaflet() %>%
 
 ```{r}
 # states <- unique(map_18_df$StateAbbr)
-states <- unique(map_18_df$STATEFP10)
+states <- unique(map_18_df_pop$STATEFP10)
 county_map <- tigris::counties(state = states)
 
 block_pop_2010 <- read.csv("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/population_by_census_block_2010 (2).csv")
@@ -167,7 +161,7 @@ county_map__18elig <- county_map %>% left_join(rc_percelig_pop2, by = c("GEOID" 
 ReConnect Eligibility 2018
 
 ```{r}
-# library(leaflet)
+library(leaflet)
 
 qpal <- colorQuantile("Blues", county_map__18elig$PERC_ELIG_14, n = 5)
 
@@ -281,20 +275,26 @@ map_14_df_pop %>% head()
 National ReConnect summaries
 
 ```{r}
+table(map_14_df_pop$eligibility_final)
+```
+
+National ReConnect summaries
+
+```{r}
 # By block count
 summary_2014rc_bc <- data.frame("Year" = 2014, 
                            "Slice" = "USA Blocks - Ct ", 
                            "Program" = "ReConnect", 
                            "Measure" = "Block Ct", 
-                           "ELIG_CT" = map_14_df %>% filter(eligibility_final == "eligible") %>% nrow()) %>%
-  mutate("PERC_ELIG_NATL" = ELIG_CT/(nrow(map_14_df) - ELIG_CT))
+                           "ELIG_CT" = map_14_df_pop %>% filter(eligibility_final == "eligible") %>% nrow()) %>%
+  mutate("PERC_ELIG_NATL" = ELIG_CT/(nrow(map_14_df_pop)))
 
 summary_2018rc_bc <- data.frame("Year" = 2018, 
                            "Slice" = "USA Blocks - Ct ", 
                            "Program" = "ReConnect", 
                            "Measure" = "Block Ct", 
-                           "ELIG_CT" = map_18_df %>% filter(eligibility_final == "eligible") %>% nrow()) %>%
-  mutate("PERC_ELIG_NATL" = ELIG_CT/(nrow(map_18_df) - ELIG_CT))
+                           "ELIG_CT" = map_18_df_pop %>% filter(eligibility_final == "eligible") %>% nrow()) %>%
+  mutate("PERC_ELIG_NATL" = ELIG_CT/(nrow(map_18_df_pop)))
 
 # By population
 summary_2014rc_pop <- data.frame("Year" = 2014, 
@@ -302,14 +302,14 @@ summary_2014rc_pop <- data.frame("Year" = 2014,
                            "Program" = "ReConnect", 
                            "Measure" = "Population", 
                            "ELIG_CT" = map_14_df_pop %>% filter(eligibility_final == "eligible") %>% .$pop %>% sum(na.rm = TRUE)) %>%
-  mutate("PERC_ELIG_NATL" = ELIG_CT/(sum(map_14_df_pop$pop, na.rm = TRUE) - ELIG_CT))
+  mutate("PERC_ELIG_NATL" = ELIG_CT/(sum(map_14_df_pop$pop, na.rm = TRUE) ))
 
 summary_2018rc_pop <- data.frame("Year" = 2018, 
                            "Slice" = "USA Blocks - POP",
                            "Program" = "ReConnect", 
                            "Measure" = "Population", 
                            "ELIG_CT" = map_18_df_pop %>% filter(eligibility_final == "eligible") %>% .$pop %>% sum(na.rm = TRUE)) %>%
-  mutate("PERC_ELIG_NATL" = ELIG_CT/(sum(map_18_df_pop$pop, na.rm = TRUE) - ELIG_CT))
+  mutate("PERC_ELIG_NATL" = ELIG_CT/(sum(map_18_df_pop$pop, na.rm = TRUE) ))
 ```
 
 National Community Connect summaries
@@ -320,15 +320,15 @@ summary_2014cc_bc <- data.frame("Year" = 2014,
                            "Slice" = "USA Blocks - Ct ", 
                            "Program" = "Comm Connect", 
                            "Measure" = "Block Ct", 
-                           "ELIG_CT" = map_14_df %>% filter(disqual1 == "eligible" & disqual2 == "eligible") %>% nrow()) %>%
-  mutate("PERC_ELIG_NATL" = ELIG_CT/(nrow(map_14_df) - ELIG_CT))
+                           "ELIG_CT" = map_14_df_pop %>% filter(disqual1 == "eligible" & disqual2 == "eligible") %>% nrow()) %>%
+  mutate("PERC_ELIG_NATL" = ELIG_CT/(nrow(map_14_df_pop)))
 
 summary_2018cc_bc <- data.frame("Year" = 2018, 
                            "Slice" = "USA Blocks - Ct ", 
                            "Program" = "Comm Connect", 
                            "Measure" = "Block Ct", 
-                           "ELIG_CT" = map_18_df %>% filter(disqual1 == "eligible" & disqual2 == "eligible") %>% nrow()) %>%
-  mutate("PERC_ELIG_NATL" = ELIG_CT/(nrow(map_18_df) - ELIG_CT))
+                           "ELIG_CT" = map_18_df_pop %>% filter(disqual1 == "eligible" & disqual2 == "eligible") %>% nrow()) %>%
+  mutate("PERC_ELIG_NATL" = ELIG_CT/(nrow(map_18_df_pop)))
 
 # By population
 summary_2014cc_pop <- data.frame("Year" = 2014, 
@@ -336,14 +336,14 @@ summary_2014cc_pop <- data.frame("Year" = 2014,
                            "Program" = "Comm Connect", 
                            "Measure" = "Population", 
                            "ELIG_CT" = map_14_df_pop %>% filter(disqual1 == "eligible" & disqual2 == "eligible") %>% .$pop %>% sum(na.rm = TRUE)) %>%
-  mutate("PERC_ELIG_NATL" = ELIG_CT/(sum(map_14_df_pop$pop, na.rm = TRUE) - ELIG_CT))
+  mutate("PERC_ELIG_NATL" = ELIG_CT/(sum(map_14_df_pop$pop, na.rm = TRUE) ))
 
 summary_2018cc_pop <- data.frame("Year" = 2018, 
                            "Slice" = "USA Blocks - POP",
                            "Program" = "Comm Connect", 
                            "Measure" = "Population", 
                            "ELIG_CT" = map_18_df_pop %>% filter(disqual1 == "eligible" & disqual2 == "eligible") %>% .$pop %>% sum(na.rm = TRUE)) %>%
-  mutate("PERC_ELIG_NATL" = ELIG_CT/(sum(map_18_df_pop$pop, na.rm = TRUE) - ELIG_CT))
+  mutate("PERC_ELIG_NATL" = ELIG_CT/(sum(map_18_df_pop$pop, na.rm = TRUE) ))
 
 
 summary_national = rbind(summary_2014rc_bc, summary_2014rc_pop, summary_2018rc_bc, summary_2018rc_pop, 
@@ -355,6 +355,10 @@ National Summaries
 
 ```{r}
 summary_national
+
+summary_national %>% filter(Measure == "Block Ct")
+
+summary_national %>% filter(Measure == "Population")
 ```
 
 State Community Connect summaries
@@ -415,7 +419,7 @@ states_summaries <- rbind(summary_2014rc_bc, summary_2018rc_bc, summary_2014rc_p
 
 # saveRDS(states_summaries, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages/states_summaries_02DEC2020.RDS")
 # 
-# write.csv(states_summaries, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages/states_summaries_02DEC2020.csv")
+# write.csv(states_summaries, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages/states_summaries_08DEC2020.csv")
 
 ```
 
@@ -441,7 +445,7 @@ summary_states = rbind(a, b, c, d, e, f, g, h)
 summary_states_ <- summary_states %>% reshape2::dcast(State~Metric, value.var = "PERC_ELIG_STATE", sum)
 # saveRDS(summary_states_, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages/summary_states_02DEC2020.RDS")
 
-# write.csv(summary_states_, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages/summary_states_02DEC2020.csv")
+# write.csv(summary_states_, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages/summary_states_08DEC2020.csv")
 
 summary_states_change <- summary_states_ %>% transmute(State, 
                               ChangeCCBC = CCBC18-CCBC14,
@@ -451,7 +455,7 @@ summary_states_change <- summary_states_ %>% transmute(State,
 
 # saveRDS(summary_states_change, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages/summary_states_change_02DEC2020.RDS")
 # 
-# write.csv(summary_states_change, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages/summary_states_change_02DEC2020.csv")
+# write.csv(summary_states_change, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages/summary_states_change_08DEC2020.csv")
 
 ```
 
@@ -508,7 +512,7 @@ leaflet() %>%
 
 ```{r}
 fcc_2018_block_max <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fcc_2018_block_maxspdelig.RDS")
-fcc_2014_block_max <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fcc_2014_block_maxspdelig_threshold_4_1.RDS")
+fcc_2014_block_max <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fcc_2014_block_maxspdelig_threshold_total3.RDS")
 
 block_pop_2010 <- read.csv("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/population_by_census_block_2010 (2).csv")
 block_pop_2010$GEOID <- ifelse(nchar(block_pop_2010$GEOID) < 15, paste0(0, block_pop_2010$GEOID), block_pop_2010$GEOID)

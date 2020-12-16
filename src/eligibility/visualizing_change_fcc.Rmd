@@ -1,0 +1,74 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+```
+
+
+
+```{r cars}
+fcc_2014_block_max <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fcc_2014_block_maxspdelig_threshold_total3.RDS")
+
+fcc_2018_block_max <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fcc_2018_block_maxspdelig.RDS")
+
+block_pop_2010 <- read.csv("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/population_by_census_block_2010.csv")
+# block_pop_2010$GEOID <- ifelse(nchar(block_pop_2010$GEOID) < 15, paste0(0, block_pop_2010$GEOID), block_pop_2010$GEOID)
+
+```
+
+
+
+```{r pressure, echo=FALSE}
+fcc_14_18<- left_join(fcc_2014_block_max %>% select(StateAbbr, BlockCode, speed_elig), fcc_2018_block_max %>% select(StateAbbr, BlockCode, speed_elig), by = c("StateAbbr", "BlockCode"))
+
+rm(fcc_2014_block_max, fcc_2018_block_max)
+
+fcc_14_18 <- fcc_14_18 %>%
+  left_join(block_pop_2010 %>% transmute(GEOID = as.double(GEOID), pop = value), by = c("BlockCode" = "GEOID")) %>%
+  mutate(CTY = stringr::str_extract(BlockCode, "\\d{5}")) 
+
+fcc_14_18 <- fcc_14_18 %>%
+  transmute(StateAbbr, BlockCode, CTY, Speed_elig_14 = speed_elig.x, Speed_elig_18 = speed_elig.y, pop)
+
+rm(block_pop_2010)
+
+where_did_elig_change <- fcc_14_18 %>% 
+  mutate(change = Speed_elig_18 - Speed_elig_14) %>% 
+  group_by(StateAbbr, CTY) %>%
+  summarise(mean_change = mean(change), sum_pop = sum(pop)) 
+
+county_map <- tigris::counties(unique(where_did_elig_change$StateAbbr))
+
+county_map_changes <- county_map %>% left_join(where_did_elig_change, by = c("GEOID" = "CTY"))
+st_crs(county_map_changes)
+
+library(leaflet)
+
+
+pal <- colorFactor(palette = c('red', 'blue'), domain = county_map_changes$mean_change)
+
+leaflet(county_map_changes) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>% 
+  addPolygons()
+  
+  addPolygons(color = ~pal(mean_change), stroke = FALSE, fillOpacity = 1) %>%
+  addLegend("bottomright", pal = pal, values = county_map_changes$mean_change,
+    title = "FCC Elig Change",
+    # labFormat = labelFormat(suffix = "%"),
+    opacity = 1
+  )
+
+
+
+```
+
+```{r}
+county_map
+```
+
+
+

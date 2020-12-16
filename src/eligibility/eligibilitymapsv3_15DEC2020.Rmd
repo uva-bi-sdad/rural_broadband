@@ -1,0 +1,136 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+```
+
+
+```{r}
+final_eligibility_df <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_18_final_eligibility_df_14DEC2020.RDS")
+```
+
+
+# BASEMAP 
+
+```{r}
+states <- unique(stringr::str_extract(final_eligibility_df$FULL_GEOID, "^\\d\\d"))
+county_map <- tigris::counties(state = states)
+```
+
+```{r}
+final_eligibility_df_ <- final_eligibility_df %>% 
+  mutate(cc_elig_14 = ifelse(Speed14 == "eligible" & Nonrural14 == "eligible", "eligible", "ineligible"), 
+         cc_elig_18 = ifelse(Speed18 == "eligible" & Nonrural18 == "eligible", "eligible", "ineligible"), 
+         areas_14_ANY = ifelse(is.na(CC_14_RUSID_intersect), paste0(cc_elig_14, ", no funds"), paste0(cc_elig_14, ", funded")), 
+         areas_18_ANY = ifelse(is.na(CC_18_RUSID_intersect), paste0(cc_elig_18, ", no funds"), paste0(cc_elig_18, ", funded")),
+         areas_14_IN = ifelse(is.na(CC_14_RUSID_inside), paste0(cc_elig_14, ", no funds"), paste0(cc_elig_14, ", funded")), 
+         areas_18_IN = ifelse(is.na(CC_18_RUSID_inside), paste0(cc_elig_18, ", no funds"), paste0(cc_elig_18, ", funded")),
+         areas_14_BOUND = ifelse(is.na(CC_14_RUSID_boundary), paste0(cc_elig_14, ", no funds"), paste0(cc_elig_14, ", funded")), 
+         areas_18_BOUND = ifelse(is.na(CC_18_RUSID_boundary), paste0(cc_elig_18, ", no funds"), paste0(cc_elig_18, ", funded")))
+
+block_pop_2010 <- read.csv("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/population_by_census_block_2010.csv")
+block_pop_2010$GEOID <- ifelse(nchar(block_pop_2010$GEOID) < 15, paste0(0, block_pop_2010$GEOID), block_pop_2010$GEOID)
+
+final_eligibility_df_ <- final_eligibility_df_ %>% left_join(block_pop_2010 %>% transmute(GEOID, pop_2010 = value), by = c("FULL_GEOID" = "GEOID"))
+
+write.csv(final_eligibility_df_, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2014_18_final_eligibility_df_15DEC2020.csv")
+
+```
+
+```{r}
+thing <- final_eligibility_df_ %>% count(cty = stringr::str_extract(FULL_GEOID, "\\d{5}"), areas_14_ANY) 
+thing %>% select(-n) %>% count(cty) %>% filter(n == 4)
+```
+
+
+```{r}
+ffx <- final_eligibility_df_  %>% filter(stringr::str_detect(FULL_GEOID, "^51059"))
+ffx_cty <- tigris::blocks(state = 51, county = "059")
+ffx_cty <- ffx_cty %>% left_join(ffx, by = c("GEOID10" = "FULL_GEOID"))
+
+library(leaflet)
+
+pal <- colorFactor(
+  palette = c('red', 'blue', 'green',  'orange'),
+  domain = ffx$areas_14_ANY
+)
+
+leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(data = ffx_cty, 
+              color = ~pal(areas_14_ANY), stroke = FALSE, fillOpacity = 1) %>%
+  addLegend("bottomright", pal = pal, values = ffx_cty$areas_14_ANY,
+    title = "Eligibility Groups",
+    # labFormat = labelFormat(suffix = "%"),
+    opacity = 1
+  )
+  
+
+# NATCHITOCHES, LA (PARISH, FIPS 22069)
+
+natch <- final_eligibility_df_  %>% filter(stringr::str_detect(FULL_GEOID, "^22069"))
+natch_cty <- tigris::blocks(state = 22, county = "069")
+natch_cty <- natch_cty %>% left_join(natch, by = c("GEOID10" = "FULL_GEOID"))
+
+library(leaflet)
+
+pal <- colorFactor(
+  palette = c('red', 'blue', 'green',  'orange'),
+  domain = natch_cty$areas_14_ANY
+)
+
+leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(data = natch_cty, 
+              color = ~pal(areas_14_ANY), stroke = FALSE, fillOpacity = 1) %>%
+  addLegend("bottomright", pal = pal, values = natch_cty$areas_14_ANY,
+    title = "Eligibility Groups",
+    # labFormat = labelFormat(suffix = "%"),
+    opacity = 1
+  )
+
+# oklahoma 40051
+
+natch <- final_eligibility_df_  %>% filter(stringr::str_detect(FULL_GEOID, "^40051"))
+natch_cty <- tigris::blocks(state = 40, county = "051")
+natch_cty <- natch_cty %>% left_join(natch, by = c("GEOID10" = "FULL_GEOID"))
+
+library(leaflet)
+
+pal <- colorFactor(
+  palette = c('red', 'blue', 'green',  'orange'),
+  domain = natch_cty$areas_14_ANY
+)
+
+leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(data = natch_cty, 
+              color = ~pal(areas_14_ANY), stroke = FALSE, fillOpacity = 1) %>%
+  addLegend("bottomright", pal = pal, values = natch_cty$areas_14_ANY,
+    title = "Eligibility Groups",
+    # labFormat = labelFormat(suffix = "%"),
+    opacity = 1
+  )
+
+```
+
+
+```{r}
+cc_percelig_pop <- map_14_df_pop %>% 
+  mutate(cc_elig = ifelse(disqual1 == "eligible" & disqual2 == "eligible", "eligible", "ineligible")) %>%
+  group_by(CTY = paste0(STATEFP10, COUNTYFP10), cc_elig) %>% 
+  summarise(sum_pop = sum(abs(pop))) 
+
+cc_percelig_pop2 <- cc_percelig_pop %>% 
+  reshape2::dcast(CTY~cc_elig, value.var = "sum_pop") %>% 
+  mutate(eligible = ifelse(is.na(eligible), 0, eligible),
+                            ineligible = ifelse(is.na(ineligible), 0, ineligible),
+                            PERC_ELIG_14 = eligible / (eligible + ineligible))
+
+county_map__14elig <- county_map %>% left_join(cc_percelig_pop2, by = c("GEOID" = "CTY"))
+```
+
