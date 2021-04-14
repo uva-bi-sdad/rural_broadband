@@ -1,0 +1,134 @@
+# check eligibility files from Devika
+library(dplyr)
+library(data.table)
+
+eligible <- fread("~/../../../../project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/eligibility_summary_percentages/USA_2014_18_final_CCRC_eligibility_fundedareas_df_15DEC2020.csv")
+
+# --------------------------------------------------------------------------------
+# change the 2014 minimum speed from 3 Mbps download + upload to 5Mbps download + upload for 2014 elig criteria
+
+fcc_2014 <- fread("~/../../../../project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/fcc_availability/fbd_us_without_satellite_dec2014_v3.csv")
+
+fcc_2014_block_max <- fcc_2014 %>%
+  group_by(StateAbbr, BlockCode) %>%
+  summarise(MaxAdDown_ = max(MaxAdDown),
+            MaxAdUp_ = max(MaxAdUp)) %>%
+  mutate(total_speed = MaxAdDown_ + MaxAdUp_,
+         speed_elig_down = NA, #ifelse(MaxAdDown_ >= 4, 0, 1),
+         speed_elig_up = NA, #ifelse(MaxAdUp_ >= 0.768, 0, 1),
+         speed_inelig = ifelse(total_speed < 5, 1, 0),
+         speed_elig = ifelse(total_speed >= 5, 0, 1))
+
+#table(nchar( fcc_2014_block_max$BlockCode ))
+#table(nchar( eligible$FULL_GEOID ))
+# problem: no link between BlockCode and FULL_GEOID?? they have the same #digits
+
+
+# use this to update the CC_ELIG_14 column; link BlockCode to FULL_GEOID
+# a) check that all < 3 are ineligible (they should be)
+inelig_blocks <- fcc_2014_block_max$BlockCode[fcc_2014_block_max$total_speed < 3]
+table(eligible$CC_ELIG_14[eligible$FULL_GEOID %in% inelig_blocks])
+#ineligible 
+#325501 
+
+# b) check that there are some <5 that are still eligible; set these to inelegible
+new_inelig_blocks <- fcc_2014_block_max$BlockCode[fcc_2014_block_max$total_speed >= 3 & fcc_2014_block_max$total_speed < 5]
+table(eligible$CC_ELIG_14[eligible$FULL_GEOID %in% new_inelig_blocks])
+# eligible ineligible 
+# 156189      20652 
+eligible$CC_ELIG_14[eligible$FULL_GEOID %in% new_inelig_blocks] <- "ineligible"
+
+# --------------------------------------------------------------------------------
+
+# fix RC_18_elig_fund_INSIDE, RC_18_elig_fund_BOUND
+# add CC_18_elig_fund_ANY, CC_18_elig_fund_INSIDE, CC_18_elig_fund_BOUND
+
+eligible2 <- eligible %>% transmute(
+  FULL_GEOID,
+  pop_2010,
+  CC_ELIG_14,
+  CC_ELIG_18,
+  CC_14_elig_fund_ANY = case_when( !is.na(CC_14_RUSID_intersect) & CC_ELIG_14 == "eligible" ~ "eligible, funded",
+                                   is.na(CC_14_RUSID_intersect) & CC_ELIG_14 == "eligible" ~ "eligible, no funds",
+                                   !is.na(CC_14_RUSID_intersect) & CC_ELIG_14 == "ineligible" ~ "ineligible, funded",
+                                   is.na(CC_14_RUSID_intersect) & CC_ELIG_14 == "ineligible" ~ "ineligible, no funds"),
+  CC_14_elig_fund_INSIDE = case_when( !is.na(CC_14_RUSID_inside) & CC_ELIG_14 == "eligible" ~ "eligible, funded",
+                                   is.na(CC_14_RUSID_inside) & CC_ELIG_14 == "eligible" ~ "eligible, no funds",
+                                   !is.na(CC_14_RUSID_inside) & CC_ELIG_14 == "ineligible" ~ "ineligible, funded",
+                                   is.na(CC_14_RUSID_inside) & CC_ELIG_14 == "ineligible" ~ "ineligible, no funds"),
+  CC_14_elig_fund_BOUND = case_when( !is.na(CC_14_RUSID_boundary) & CC_ELIG_14 == "eligible" ~ "eligible, funded",
+                                   is.na(CC_14_RUSID_boundary) & CC_ELIG_14 == "eligible" ~ "eligible, no funds",
+                                   !is.na(CC_14_RUSID_boundary) & CC_ELIG_14 == "ineligible" ~ "ineligible, funded",
+                                   is.na(CC_14_RUSID_boundary) & CC_ELIG_14 == "ineligible" ~ "ineligible, no funds"),
+  CC_14_RUSID_intersect,
+  CC_14_RUSID_inside,
+  CC_14_RUSID_boundary,
+  CC_18_elig_fund_ANY = case_when( !is.na(CC_18_RUSID_intersect) & CC_ELIG_18 == "eligible" ~ "eligible, funded",
+                                   is.na(CC_18_RUSID_intersect) & CC_ELIG_18 == "eligible" ~ "eligible, no funds",
+                                   !is.na(CC_18_RUSID_intersect) & CC_ELIG_18 == "ineligible" ~ "ineligible, funded",
+                                   is.na(CC_18_RUSID_intersect) & CC_ELIG_18 == "ineligible" ~ "ineligible, no funds"),
+  CC_18_elig_fund_INSIDE = case_when( !is.na(CC_18_RUSID_inside) & CC_ELIG_18 == "eligible" ~ "eligible, funded",
+                                      is.na(CC_18_RUSID_inside) & CC_ELIG_18 == "eligible" ~ "eligible, no funds",
+                                      !is.na(CC_18_RUSID_inside) & CC_ELIG_18 == "ineligible" ~ "ineligible, funded",
+                                      is.na(CC_18_RUSID_inside) & CC_ELIG_18 == "ineligible" ~ "ineligible, no funds"),
+  CC_18_elig_fund_BOUND = case_when( !is.na(CC_18_RUSID_boundary) & CC_ELIG_18 == "eligible" ~ "eligible, funded",
+                                     is.na(CC_18_RUSID_boundary) & CC_ELIG_18 == "eligible" ~ "eligible, no funds",
+                                     !is.na(CC_18_RUSID_boundary) & CC_ELIG_18 == "ineligible" ~ "ineligible, funded",
+                                     is.na(CC_18_RUSID_boundary) & CC_ELIG_18 == "ineligible" ~ "ineligible, no funds"),
+  CC_18_RUSID_intersect,
+  CC_18_RUSID_inside,
+  CC_18_RUSID_boundary,
+  rc_elig_18,
+  RC_18_elig_fund_ANY = case_when( !is.na(RC_18_RUSID_intersect) & rc_elig_18 == "eligible" ~ "eligible, funded",
+                                   is.na(RC_18_RUSID_intersect) & rc_elig_18 == "eligible" ~ "eligible, no funds",
+                                   !is.na(RC_18_RUSID_intersect) & rc_elig_18 == "ineligible" ~ "ineligible, funded",
+                                   is.na(RC_18_RUSID_intersect) & rc_elig_18 == "ineligible" ~ "ineligible, no funds"),
+  RC_18_elig_fund_INSIDE = case_when( !is.na(RC_18_RUSID_inside) & rc_elig_18 == "eligible" ~ "eligible, funded",
+                                      is.na(RC_18_RUSID_inside) & rc_elig_18 == "eligible" ~ "eligible, no funds",
+                                      !is.na(RC_18_RUSID_inside) & rc_elig_18 == "ineligible" ~ "ineligible, funded",
+                                      is.na(RC_18_RUSID_inside) & rc_elig_18 == "ineligible" ~ "ineligible, no funds"),
+  RC_18_elig_fund_BOUND = case_when( !is.na(RC_18_RUSID_boundary) & rc_elig_18 == "eligible" ~ "eligible, funded",
+                                     is.na(RC_18_RUSID_boundary) & rc_elig_18 == "eligible" ~ "eligible, no funds",
+                                     !is.na(RC_18_RUSID_boundary) & rc_elig_18 == "ineligible" ~ "ineligible, funded",
+                                     is.na(RC_18_RUSID_boundary) & rc_elig_18 == "ineligible" ~ "ineligible, no funds"),
+  RC_18_RUSID_intersect,
+  RC_18_RUSID_inside,
+  RC_18_RUSID_boundary
+)
+
+fwrite(eligible2, "~/../../../../project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/USA_2014_18_final_CCRC_eligibility_fundedareas_df_17MAR2021.csv")
+
+
+# compare with previous estimates; all agree except for incorrect RC_18_elig_fund_INSIDE, RC_18_elig_fund_BOUND
+table(eligible2$CC_18_elig_fund_ANY, useNA="always")
+table(eligible2$CC_18_elig_fund_INSIDE, useNA="always")
+table(eligible2$CC_18_elig_fund_BOUND, useNA="always")
+
+table(eligible$CC_14_elig_fund_ANY, useNA="always")
+table(eligible2$CC_14_elig_fund_ANY, useNA="always")
+
+table(eligible$CC_14_elig_fund_INSIDE, useNA="always")
+table(eligible2$CC_14_elig_fund_INSIDE, useNA="always")
+
+table(eligible$CC_14_elig_fund_BOUND, useNA="always")
+table(eligible2$CC_14_elig_fund_BOUND, useNA="always")
+
+table(eligible$RC_14_elig_fund_ANY, useNA="always")
+table(eligible2$RC_18_elig_fund_ANY, useNA="always")
+
+table(eligible$RC_14_elig_fund_INSIDE, useNA="always")
+table(eligible2$RC_18_elig_fund_INSIDE, useNA="always")
+
+table(eligible$RC_14_elig_fund_BOUND, useNA="always")
+table(eligible2$RC_18_elig_fund_BOUND, useNA="always")
+
+
+# find a block with both INSIDE and BOUND
+duplicates <- eligible2[eligible2$CC_14_elig_fund_INSIDE=="eligible, funded" & eligible2$CC_14_elig_fund_BOUND=="eligible, funded",]
+# the duplicates occur because the block has an interior intersection with one funding area, and a boundary intersection with another funding area
+# FULL_ GEOID 380039680002293
+# CC_14_RUSID_inside: ND1401-A23
+# CC_14_RUSID_boundary: ND1401-B23
+
+
+
