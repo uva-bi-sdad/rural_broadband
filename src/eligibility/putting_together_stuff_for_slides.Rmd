@@ -1,0 +1,139 @@
+
+
+
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+```
+
+```{r}
+usa_blocks_speed_rural <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/USA_2018_draft_eligibility_sf_18NOV2020v1.RDS")
+
+joshfile <- read.csv("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/working/USA_2014_18_final_CCRC_eligibility_fundedareas_df_17MAR2021.csv")
+```
+
+
+```{r}
+head(usa_blocks_speed_rural)
+usa_blocks_speed_rural$geometry <- NULL
+
+usa_blocks_speed_rural <- usa_blocks_speed_rural %>% as.data.frame()
+usa_blocks_speed_rural %>% head
+
+comp_fund_areas<- usa_blocks_speed_rural %>% select(state, STATEFP10, COUNTYFP10, protborr_inelg_vec, caf2_inelg_vec)
+
+comp_fund_areas2 <- comp_fund_areas %>% transmute(state, STATEFP10, COUNTYFP10, funded = protborr_inelg_vec + caf2_inelg_vec) 
+
+comp_fund_areas2 <- comp_fund_areas2 %>% reshape2::dcast(state + STATEFP10 + COUNTYFP10 ~ funded)
+comp_fund_areas2 <- comp_fund_areas2 %>% transmute(state, STATEFP10, COUNTYFP10, unfunded = `0`, funded = `1` + `2`)
+comp_fund_areas3 <- comp_fund_areas2 %>% 
+  transmute(STATEFP10, COUNTYFP10, 
+            funded = ifelse(is.na(funded), 0, funded), 
+            unfunded = ifelse(is.na(unfunded), 0, unfunded), 
+            perc_fund = funded/(funded+unfunded))
+
+us_counties <- tigris::counties() 
+
+stab_county_fundedmap <- us_counties %>% left_join(comp_fund_areas3, by = c("STATEFP" = "STATEFP10", "COUNTYFP" = "COUNTYFP10"))
+
+leaflet::leaflet() %>% 
+  leaflet::addProviderTiles(leaflet::providers$CartoDB.Positron) %>%
+  leaflet::addPolygons(data = stab_county_fundedmap, smoothFactor = 0.2, fillOpacity = 1,
+    color = ~pal(perc_fund))
+
+
+  
+```
+
+
+```{r}
+hist(stab_county_fundedmap$perc_fund)
+pal <- leaflet::colorNumeric(
+  palette = colorRamp(c("#FFFFFF", "#941651")),
+  domain = stab_county_fundedmap$perc_fund)
+```
+
+
+
+```{r}
+# table(nchar(joshfile$FULL_GEOID_15)) 
+
+joshfile <- joshfile %>% 
+  mutate(FULL_GEOID_15 = ifelse(nchar(FULL_GEOID) < 15, paste0(0, FULL_GEOID), FULL_GEOID),
+         state_fips = stringr::str_extract(FULL_GEOID_15, "\\d{2}"),
+         county_fips = stringr::str_extract(stringr::str_extract(FULL_GEOID_15, pattern = "\\d{5}"), "\\d{3}$")) 
+
+program_comparison_points_ANY <- c("CC_14_elig_fund_ANY", "CC_18_elig_fund_ANY", "RC_18_elig_fund_ANY")
+
+```
+
+```{r}
+get_fund_perc_pop <- function(dataset, variablename) {
+  
+  varNAME <- as.character(variablename)
+  
+  # Pull variable and flip it with population tabulated
+  res <- dataset %>% 
+    group_by(state_fips, !! sym(variablename)) %>%
+    summarise(population = sum(pop_2010))  %>%
+    as.data.frame() %>% 
+    tidyr::pivot_wider(id_cols = c("state_fips"), names_from = varNAME, values_from = population)
+  
+  # replace all zeroes
+  res[is.na(res)] <- 0
+  
+  
+  res <- res %>%
+    transmute(state_fips,
+              perc_elig = (`eligible, funded` + `eligible, no funds`) /
+                (`eligible, funded` + `eligible, no funds` +   `ineligible, funded` +  `ineligible, no funds`),
+              perc_fund = (`eligible, funded` + `ineligible, funded`) /
+                (`eligible, funded` + `eligible, no funds` +   `ineligible, funded` +  `ineligible, no funds`),
+              perc_remaining_eligible = (`eligible, no funds`) / (`eligible, funded` + `eligible, no funds`)
+              #, perc_funded_eligible = (`eligible, funded`) / (`eligible, funded` + `ineligible, funded`)
+                        )
+  
+  colnames(res)[2:4] <- paste0(varNAME, "___", colnames(res)[2:4]) 
+  
+  res
+  
+}
+
+
+test_var1 <- get_fund_perc_pop(joshfile, variablename =  "CC_14_elig_fund_ANY")
+test_var2 <- get_fund_perc_pop(joshfile, variablename =  "CC_18_elig_fund_ANY")
+
+cc_final_comp_ANY <- test_var1 %>% left_join(test_var2, by = "state_fips")
+
+mapmecc <- cc_final_comp_ANY %>% 
+  transmute(state_fips,
+            change_perc_elig = CC_18_elig_fund_ANY___perc_elig - CC_14_elig_fund_ANY___perc_elig,
+            change_perc_fund = CC_18_elig_fund_ANY___perc_fund - CC_14_elig_fund_ANY___perc_fund,
+            change_perc_pen = CC_18_elig_fund_ANY___perc_remaining_eligible - CC_14_elig_fund_ANY___perc_remaining_eligible
+            )
+
+
+```
+
+
+
+```{r}
+states <- tigris::states()
+
+states <- states %>% left_join(mapmecc, by = c("STATEFP" = "state_fips"))
+```
+
+```{r}
+library(leaflet)
+```
+
+
+
+
+
+
