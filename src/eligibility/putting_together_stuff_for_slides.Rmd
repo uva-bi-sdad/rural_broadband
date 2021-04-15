@@ -72,6 +72,9 @@ program_comparison_points_ANY <- c("CC_14_elig_fund_ANY", "CC_18_elig_fund_ANY",
 
 ```
 
+
+#########STATE MAPS
+
 ```{r}
 get_fund_perc_pop <- function(dataset, variablename) {
   
@@ -111,7 +114,7 @@ test_var2 <- get_fund_perc_pop(joshfile, variablename =  "CC_18_elig_fund_ANY")
 cc_final_comp_ANY <- test_var1 %>% left_join(test_var2, by = "state_fips")
 
 mapmecc <- cc_final_comp_ANY %>% 
-  transmute(state_fips,
+  transmute(state_fips, county_fips, 
             change_perc_elig = CC_18_elig_fund_ANY___perc_elig - CC_14_elig_fund_ANY___perc_elig,
             change_perc_fund = CC_18_elig_fund_ANY___perc_fund - CC_14_elig_fund_ANY___perc_fund,
             change_perc_pen = CC_18_elig_fund_ANY___perc_remaining_eligible - CC_14_elig_fund_ANY___perc_remaining_eligible
@@ -123,17 +126,252 @@ mapmecc <- cc_final_comp_ANY %>%
 
 
 ```{r}
-states <- tigris::states()
+counties <- tigris::counties()
 
-states <- states %>% left_join(mapmecc, by = c("STATEFP" = "state_fips"))
+counties <- counties %>% left_join(mapmecc, by = c("STATEFP" = "state_fips", "COUNTYFP" = "county_fips"))
+
+states <- states %>% filter(!is.nan(change_perc_elig))
+states <- states %>% filter(!is.na(change_perc_elig))
 ```
 
 ```{r}
 library(leaflet)
 ```
 
+MAP: CHANGE IN PERCENT ELIGIBILITY 
+
+```{r}
+hist(counties$change_perc_elig)
+# pal_perc_elig <- leaflet::colorNumeric(
+#   palette = colorRamp(c( "#941651", "#FFFFFF")),
+#   domain = counties$change_perc_elig)
+
+scale_range <- c(-1, 1)
+
+pal_perc_elig <- colorNumeric("RdBu", domain = scale_range)
+```
+
+
+```{r}
+leaflet(counties) %>%
+leaflet::addProviderTiles(leaflet::providers$CartoDB.Positron) %>%
+  leaflet::addPolygons(data = counties, stroke = FALSE, fillOpacity = 1,
+    color = ~pal_perc_elig(change_perc_elig)) %>%
+  addLegend("bottomright", pal = pal_perc_elig, values = ~change_perc_elig,
+    title = "Change in % Eligible",
+    # labFormat = labelFormat(prefix = "$"),
+    opacity = 1
+  )
+  
+```
+
+MAP: CHANGE IN PERCENT FUNDING 
+
+```{r}
+hist(counties$change_perc_fund)
+pal_perc_fund <- leaflet::colorNumeric(
+  palette = 'RdBu',
+  domain = states$change_perc_fund)
+
+scale_range_2 <- c(-.6, .6)
+
+pal_perc_fund <- colorNumeric("RdBu", domain = scale_range_2)
+
+counties %>% mutate(change_perc_fund_POSNEG = ifelse(change))
+
+```
+
+
+```{r}
+leaflet(counties) %>%
+leaflet::addProviderTiles(leaflet::providers$CartoDB.Positron) %>%
+  leaflet::addPolygons(data = counties, stroke = FALSE, fillOpacity = 1,
+    color = ~pal_perc_fund(change_perc_fund)) %>%
+  addLegend("bottomright", pal = pal_perc_fund, values = ~change_perc_fund,
+    title = "Change in % Fund",
+    # labFormat = labelFormat(prefix = "$"),
+    opacity = 1
+  )
+  
+```
+
+
+MAP: CHANGE IN PERCENT PENETRATED 
+
+```{r}
+hist(states$change_perc_pen)
+pal_perc_pen <- leaflet::colorNumeric(
+  palette = 'RdBu',
+  domain = states$change_perc_pen)
+```
+
+
+```{r}
+leaflet(states) %>%
+leaflet::addProviderTiles(leaflet::providers$CartoDB.Positron) %>%
+  leaflet::addPolygons(data = states, stroke = FALSE, fillOpacity = 1,
+    color = ~pal_perc_pen(change_perc_pen)) %>%
+  addLegend("bottomright", pal = pal_perc_pen, values = ~change_perc_pen,
+    title = "Change in % Fund",
+    # labFormat = labelFormat(prefix = "$"),
+    opacity = 1
+  )
+  
+```
+
+
+#########COUNTY MAPS
+
+```{r}
+joshfile %>% head()
+```
+
+
+```{r}
+get_fund_perc_pop_CTY <- function(dataset, variablename) {
+  
+  varNAME <- as.character(variablename)
+  
+  # Pull variable and flip it with population tabulated
+  res <- dataset %>% 
+    group_by(state_fips, county_fips, !! sym(variablename)) %>%
+    summarise(population = sum(pop_2010))  %>%
+    as.data.frame() %>% 
+    tidyr::pivot_wider(id_cols = c("state_fips", "county_fips"), names_from = varNAME, values_from = population)
+  
+  # replace all zeroes
+  res[is.na(res)] <- 0
+  
+  
+  
+  if(length(colnames(res)) < 6) {
+    columns <- colnames(res)
+    if("eligible, funded" %in% columns == FALSE) {
+      res <- res %>% mutate(`eligible, funded` = 0)
+    }
+    if("eligible, no funds" %in% columns == FALSE) {
+      res <- res %>% mutate(`eligible, no funds` = 0)
+    }
+    if("ineligible, funded" %in% columns == FALSE) {
+      res <- res %>% mutate(`ineligible, funded` = 0)
+    }
+    if("ineligible, no funds" %in% columns == FALSE) {
+      res <- res %>% mutate(`ineligible, no funds` = 0)
+    }
+  }
+  
+  res
+  
+  res <- res %>%
+    transmute(state_fips, county_fips,
+              perc_elig = (`eligible, funded` + `eligible, no funds`) /
+                (`eligible, funded` + `eligible, no funds` +   `ineligible, funded` +  `ineligible, no funds`),
+              perc_fund = (`eligible, funded` + `ineligible, funded`) /
+                (`eligible, funded` + `eligible, no funds` +   `ineligible, funded` +  `ineligible, no funds`),
+              perc_remaining_eligible = (`eligible, no funds`) / (`eligible, funded` + `eligible, no funds`)
+              #, perc_funded_eligible = (`eligible, funded`) / (`eligible, funded` + `ineligible, funded`)
+                        )
+
+  colnames(res)[3:6] <- paste0(varNAME, "___", colnames(res)[3:6])
+  
+  res
+  
+}
+```
+
+```{r}
+westvirginia <- joshfile %>% filter(state_fips == "54")
+get_fund_perc_pop_CTY(westvirginia, "CC_14_elig_fund_ANY")
+
+test_var1_CTY <- get_fund_perc_pop_CTY(joshfile, variablename =  "CC_14_elig_fund_ANY")
+test_var2_CTY <- get_fund_perc_pop_CTY(joshfile, variablename =  "CC_18_elig_fund_ANY")
+
+cc_final_comp_ANY <- test_var1_CTY %>% left_join(test_var2_CTY, by = c("state_fips", "county_fips"))
+
+
+```
 
 
 
+```{r}
+states <- tigris::states()
+
+states <- states %>% left_join(mapmecc, by = c("STATEFP" = "state_fips"))
+
+states <- states %>% filter(!is.nan(change_perc_elig))
+states <- states %>% filter(!is.na(change_perc_elig))
+```
+
+```{r}
+library(leaflet)
+```
+
+MAP: CHANGE IN PERCENT ELIGIBILITY 
+
+```{r}
+hist(states$change_perc_elig)
+pal_perc_elig <- leaflet::colorNumeric(
+  palette = colorRamp(c( "#941651", "#FFFFFF")),
+  domain = states$change_perc_elig)
+```
 
 
+```{r}
+leaflet(states) %>%
+leaflet::addProviderTiles(leaflet::providers$CartoDB.Positron) %>%
+  leaflet::addPolygons(data = states, stroke = FALSE, fillOpacity = 1,
+    color = ~pal_perc_elig(change_perc_elig)) %>%
+  addLegend("bottomright", pal = pal_perc_elig, values = ~change_perc_elig,
+    title = "Change in % Eligible",
+    # labFormat = labelFormat(prefix = "$"),
+    opacity = 1
+  )
+  
+```
+
+MAP: CHANGE IN PERCENT FUNDING 
+
+```{r}
+hist(states$change_perc_fund)
+pal_perc_fund <- leaflet::colorNumeric(
+  palette = 'RdBu',
+  domain = states$change_perc_fund)
+```
+
+
+```{r}
+leaflet(states) %>%
+leaflet::addProviderTiles(leaflet::providers$CartoDB.Positron) %>%
+  leaflet::addPolygons(data = states, stroke = FALSE, fillOpacity = 1,
+    color = ~pal_perc_fund(change_perc_fund)) %>%
+  addLegend("bottomright", pal = pal_perc_fund, values = ~change_perc_fund,
+    title = "Change in % Fund",
+    # labFormat = labelFormat(prefix = "$"),
+    opacity = 1
+  )
+  
+```
+
+
+MAP: CHANGE IN PERCENT PENETRATED 
+
+```{r}
+hist(states$change_perc_pen)
+pal_perc_pen <- leaflet::colorNumeric(
+  palette = 'RdBu',
+  domain = states$change_perc_pen)
+```
+
+
+```{r}
+leaflet(states) %>%
+leaflet::addProviderTiles(leaflet::providers$CartoDB.Positron) %>%
+  leaflet::addPolygons(data = states, stroke = FALSE, fillOpacity = 1,
+    color = ~pal_perc_pen(change_perc_pen)) %>%
+  addLegend("bottomright", pal = pal_perc_pen, values = ~change_perc_pen,
+    title = "Change in % Fund",
+    # labFormat = labelFormat(prefix = "$"),
+    opacity = 1
+  )
+  
+```
