@@ -1,0 +1,454 @@
+---
+title: "counties_rurality_intersect"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(dplyr)
+library(sf)
+```
+
+
+
+```{r cars}
+us_counties <- tigris::counties()
+rurality <- sf::st_read("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL/RD_BROADBAND_IELG_PRODUCTION.shp")
+
+# shapes_e  <- readRDS("/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS_USA_SF.RDS")
+
+rurality <- rurality %>% st_transform(st_crs(us_counties))
+
+counties_x_urban <- st_intersects(us_counties, rurality)
+counties_x_urban[1:6]
+
+us_counties$x_urban <- counties_x_urban %>% lengths > 0
+
+us_counties %>% .$x_urban %>% table
+
+us_counties_x_urban <- us_counties %>% filter(x_urban == TRUE)
+
+urban_county_list  <- us_counties_x_urban %>% as.data.frame %>% select(1, 2)  %>% mutate(check_cty = paste0(STATEFP, COUNTYFP)) #%>% group_by(STATEFP) %>% summarise(counties = list(COUNTYFP))
+
+# shapes_states <- shapes_e %>% filter(STATEFP10 %in% urban_county_list$STATEFP)
+# 
+# shapes_states$check_cty <- paste0(shapes_states$STATEFP10, shapes_states$COUNTYFP10)
+# 
+# blocks_in_counties_with_urban <- shapes_states %>% filter(check_cty %in% urban_county_list$check_cty)
+# nrow(blocks_in_counties_with_urban)
+
+# us_counties_x_urban %>% saveRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL_counties_intersect.RDS")
+
+```
+
+
+```{r}
+# read in the Census Tracts data
+
+# set up environmental vars (DON'T push actual values to github)
+Sys.setenv(db_usr = "dtn2ep")
+Sys.setenv(db_pwd = "dtn2ep")
+
+get_db_conn <-
+  function(db_name =  "sdad",
+           db_host = "postgis1",
+           db_port = "5432",
+           db_user = Sys.getenv("db_usr"), # requires you to setup environmental vars (above)
+           db_pass = Sys.getenv("db_pwd")) {
+    RPostgreSQL::dbConnect(
+      drv = RPostgreSQL::PostgreSQL(),
+      dbname = db_name,
+      host = db_host,
+      port = db_port,
+      user = db_user,
+      password = db_pass
+    )
+  }
+
+list_db_schemas <- function(db_con) {
+  result <- DBI::dbGetQuery(db_con, "select schema_name from information_schema.schemata")
+  DBI::dbDisconnect(db_con)
+  return(result)
+}
+
+list_schema_tables <- function(db_con, db_schema) {
+  result <- DBI::dbGetQuery(db_con, paste0("SELECT table_name FROM information_schema.tables
+                                           WHERE table_schema='", db_schema, "'"))
+  DBI::dbDisconnect(db_con)
+  return(result)
+}
+
+list_table_columns <- function(db_con, db_schema, db_table) {
+  result <- DBI::dbGetQuery(db_con, paste0("SELECT table_schema, table_name, column_name, data_type
+                                           FROM information_schema.columns
+                                           WHERE table_schema = '", db_schema, "'",
+                                           " AND table_name = '", db_table, "'"))
+  DBI::dbDisconnect(db_con)
+  return(result)
+}
+
+
+```
+
+```{r}
+us_counties_x_urban <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL_counties_intersect.RDS")
+
+urban_county_list  <- us_counties_x_urban %>% as.data.frame %>% select(1, 2)  %>% mutate(check_cty = paste0(STATEFP, COUNTYFP))
+
+rurality <- sf::st_read("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL/RD_BROADBAND_IELG_PRODUCTION.shp")
+
+rurality <- rurality %>% st_transform(st_crs(us_counties_x_urban))
+
+us_counties_x_urban %>% filter(STATEFP == 51)  %>% .$geometry %>% plot
+va_urban_counties <- us_counties_x_urban %>% filter(STATEFP == 51)
+
+rurality_ <- rurality %>% st_make_valid()
+rurality__ <- rurality %>% st_buffer(0)
+
+# saveRDS(rurality_, "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL/RECONNECT_NONRURAL_madevalid.RDS")
+
+va_counties_x_urban_polygons <- st_intersection(va_urban_counties, rurality__)
+
+plot(va_counties_x_urban_polygons$geometry)
+
+us_counties_x_urban_polygons <- st_intersection(us_counties_x_urban, rurality__)
+
+
+```
+
+```{r}
+rurality <- sf::st_read("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL/RD_BROADBAND_IELG_PRODUCTION.shp")
+
+states <- tigris::states()
+
+rurality_ <- rurality %>% st_transform(st_crs(states)) %>% st_buffer(0)
+
+for (i in 35:nrow(states)) {
+  print(states$STUSPS[i])
+  a <- Sys.time()
+  states_nonrural <- st_intersection(states[i,], rurality_)
+  b <- Sys.time()
+  c <- as.character(as.integer((b-a)/60))
+  print(paste0((c), " minutes"))
+  saveRDS(states_nonrural, paste0("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL_working/nonrural_state_intersections/nonrural_states_polygon_", states$STATEFP[i], ".RDS"))
+  
+}
+
+```
+
+
+```{r}
+cb_path <- "/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS/"
+census_blocks_states <- list.files(cb_path)
+
+cb_files <- data.frame(state = stringr::str_remove_all(census_blocks_states, "tl_2018_|_tabblock10.RDS"), cb_filenames = census_blocks_states, cb_paths = paste0(cb_path, census_blocks_states))
+
+nonrural_path <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL_working/nonrural_state_intersections/"
+nonrural_states <- list.files(nonrural_path)
+nonrural_files <- data.frame(state = stringr::str_remove_all(nonrural_states, "nonrural_states_polygon_|\\.RDS"), nr_filename = nonrural_states, nr_path = paste0(nonrural_path, nonrural_states))
+
+files_to_intersect <- cb_files %>% full_join(nonrural_files, by = "state")
+files_to_intersect <- files_to_intersect[!is.na(files_to_intersect$cb_filenames),]
+
+savepath <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL_working/"
+savepath_1 <- "blocks_nonruralTF_sf/"
+savepath_2 <- "blocks_nonruralTF_df/"
+
+us_counties_x_urban <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL_counties_intersect.RDS")  %>% as.data.frame %>% select(1, 2)  %>% mutate(county_nonrural = 1)
+
+files_to_intersect <- files_to_intersect %>% mutate(size = file.size(nr_path)) %>% arrange(size)
+completed <- data.frame(completed_files = list.files(paste0(savepath, savepath_2)) ) %>% transmute(state = stringr::str_remove_all(completed_files, "blocks_2018_nonruralTF_df_|\\.RDS"), complete = 1)
+
+files_to_intersect_ <- files_to_intersect %>% left_join(completed, by = "state") %>% filter(is.na(complete)) %>% arrange((size))
+fips <- tigris::fips_codes %>% select(state, state_code, state_name) %>% distinct()
+files_to_intersect_ %>% inner_join(fips, by = c("state" = "state_code")) %>% select(state, size, state.y, state_name)
+
+
+i <- 4
+rm(i)
+
+for (i in 4:nrow(files_to_intersect_)) {
+  print(files_to_intersect_$state[i])
+  blocks <- readRDS(files_to_intersect_$cb_paths[i])
+  blocks <- blocks %>% left_join(us_counties_x_urban, by = c("STATEFP10" = "STATEFP", "COUNTYFP10" = "COUNTYFP"))
+  
+  rural_cty_blocks <- blocks %>% filter(county_nonrural != 1|is.na(county_nonrural))
+  
+  if(nrow(rural_cty_blocks) != nrow(blocks) ) {
+    nonrural_cty_blocks <- blocks %>% filter(county_nonrural == 1)
+    nonrural <- readRDS(files_to_intersect_$nr_path[i])
+    blocks_nonrural_vector <- st_intersects(nonrural_cty_blocks, nonrural)
+    nonrural_cty_blocks$nonruralTF <- blocks_nonrural_vector %>% lengths > 0 
+    blocks <- rbind(rural_cty_blocks %>% mutate(nonruralTF = 0), nonrural_cty_blocks)
+    
+    saveRDS(blocks, paste0(savepath, savepath_1, "blocks_2018_nonruralTF_sf_", files_to_intersect_$state[i], ".RDS"))
+    
+    blocks_df <- blocks %>% as.data.frame() %>% select(STATEFP10, COUNTYFP10, TRACTCE10, BLOCKCE10, GEOID10, NAME10, nonruralTF)
+    saveRDS(blocks_df, paste0(savepath, savepath_2, "blocks_2018_nonruralTF_df_", files_to_intersect_$state[i], ".RDS"))
+  }
+  
+  if(nrow(rural_cty_blocks) == nrow(blocks) ) {
+    print(files_to_intersect_$state[i])
+    print("has no non-rural counties")
+  }
+  
+}
+
+# states without non-rural states (aka entirely RURAL, according to new USDA file's county intersects)
+c(66, 60, 69, 21)
+c("AS", "GU", "MP", "KY")
+
+rural_blocks <- blocks %>% filter(nonruralTF == FALSE)
+
+plot(states$geometry[1])
+plot(nonrural$geometry, add = TRUE, col = "red")
+plot(rural_blocks$geometry, add = TRUE, col = "blue")
+
+
+```
+
+#BIG STATES - TRACTS
+
+```{r}
+cb_path <- "/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS/"
+census_blocks_states <- list.files(cb_path)
+
+cb_files <- data.frame(state = stringr::str_remove_all(census_blocks_states, "tl_2018_|_tabblock10.RDS"), cb_filenames = census_blocks_states, cb_paths = paste0(cb_path, census_blocks_states))
+
+nonrural_path <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL_working/nonrural_state_intersections/"
+nonrural_states <- list.files(nonrural_path)
+nonrural_files <- data.frame(state = stringr::str_remove_all(nonrural_states, "nonrural_states_polygon_|\\.RDS"), nr_filename = nonrural_states, nr_path = paste0(nonrural_path, nonrural_states))
+
+files_to_intersect <- cb_files %>% full_join(nonrural_files, by = "state")
+files_to_intersect <- files_to_intersect[!is.na(files_to_intersect$cb_filenames),]
+
+savepath <- "/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL_working/"
+savepath_1 <- "blocks_nonruralTF_sf/"
+savepath_2 <- "blocks_nonruralTF_df/"
+
+us_counties_x_urban <- readRDS("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL_counties_intersect.RDS")  %>% as.data.frame %>% select(1, 2)  %>% mutate(county_nonrural = 1)
+
+files_to_intersect <- files_to_intersect %>% mutate(size = file.size(nr_path)) %>% arrange(size)
+completed <- data.frame(completed_files = list.files(paste0(savepath, savepath_2)) ) %>% transmute(state = stringr::str_remove_all(completed_files, "blocks_2018_nonruralTF_df_|\\.RDS"), complete = 1)
+
+files_to_intersect_ <- files_to_intersect %>% left_join(completed, by = "state") %>% filter(is.na(complete)) %>% arrange((size))
+fips <- tigris::fips_codes %>% select(state, state_code, state_name) %>% distinct()
+files_to_intersect_ %>% inner_join(fips, by = c("state" = "state_code")) %>% select(state, size, state.y, state_name)
+
+i <- 4
+rm(i)
+
+for (i in 4:nrow(files_to_intersect_)) {
+  print(files_to_intersect_$state[i])
+  options(tigris_use_cache = TRUE)
+  tracts <- tigris::tracts(state = files_to_intersect_$state[i])
+  tracts <- tracts %>% left_join(us_counties_x_urban, by = c( "STATEFP",  "COUNTYFP"))
+  rural_cty_tracts <- tracts %>% filter(county_nonrural != 1 | is.na(county_nonrural))
+  
+  
+  
+  if(nrow(rural_cty_tracts) != nrow(tracts) ) {
+    # INTERSECTION WITH TRACTS - get tract level polygons
+    nonrural_cty_tracts <- tracts %>% filter(county_nonrural == 1)
+    nonrural <- readRDS(files_to_intersect_$nr_path[i])
+    nonrural_cty_tracts_polygons <- st_intersection(nonrural_cty_tracts, nonrural)
+    saveRDS(nonrural_cty_tracts_polygons, file = paste0("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL_working/nonruralstate_2018_", files_to_intersect_$state[i],"_nonruraltracts_polygons.RDS"))
+    
+    # INTERSECT TRACT POLYGONS WITH BLOCKS - get block level YES/NO nonrural
+    blocks <- readRDS(files_to_intersect_$cb_paths[i])
+    blocks <- blocks %>% left_join(us_counties_x_urban, by = c("STATEFP10" = "STATEFP", "COUNTYFP10" = "COUNTYFP"))
+    rural_cty_blocks <- blocks %>% filter(county_nonrural != 1|is.na(county_nonrural))
+    nonrural_cty_blocks <- blocks %>% filter(county_nonrural == 1)
+    
+    blocks_nonrural_tract_vector <- st_intersects(nonrural_cty_blocks, nonrural_cty_tracts_polygons)
+    nonrural_cty_blocks$nonruralTF <- blocks_nonrural_tract_vector %>% lengths > 0 
+    
+    blocks <- rbind(rural_cty_blocks %>% mutate(nonruralTF = 0), nonrural_cty_blocks)
+    
+    saveRDS(blocks, paste0(savepath, savepath_1, "blocks_2018_nonruralTF_sf_", files_to_intersect_$state[i], ".RDS"))
+    
+    blocks_df <- blocks %>% as.data.frame() %>% select(STATEFP10, COUNTYFP10, TRACTCE10, BLOCKCE10, GEOID10, NAME10, nonruralTF)
+    saveRDS(blocks_df, paste0(savepath, savepath_2, "blocks_2018_nonruralTF_df_", files_to_intersect_$state[i], ".RDS"))
+  }
+  
+  if(nrow(rural_cty_blocks) == nrow(blocks) ) {
+    print(files_to_intersect_$state[i])
+    print("has no non-rural counties")
+  }
+  
+}
+
+nonrural_state_polygon <- readRDS(files_to_intersect_$nr_path[i])
+plot(nonrural_state_polygon$geometry)
+blocks <- readRDS(paste0(savepath, savepath_1, "blocks_2018_nonruralTF_sf_", files_to_intersect_$state[i], ".RDS"))
+plot(blocks[, c("nonruralTF", "geometry")])
+
+# 
+# 06 , 061, 021401
+check <- nonrural_cty_tracts_polygons %>% filter(STATEFP == "12" & COUNTYFP == "031" )#& TRACTCE == "003613")
+checkme <- nonrural_cty_blocks %>% filter(STATEFP10 == "12" & COUNTYFP10 == "031") #& TRACTCE10== "003613")
+checkit <- nonrural_cty_tracts_polygons %>% filter(STATEFP == "12" & COUNTYFP == "031" & TRACTCE == "003613")
+
+plot(check$geometry)
+plot(checkit$geometry, add = TRUE, col = "red")
+plot(checkme[,c("nonruralTF", "geometry")])
+
+
+nonrural_cty_blocks <- nonrural_cty_blocks %>% select(-nonruraltract_TF)
+plot(nonrural_cty_tracts_polygons$geometry)
+
+nonrural_cty_blocks %>% filter(nonruralTF == FALSE) 
+
+
+```
+
+
+
+```{r}
+# options(tigris_use_cache = TRUE)
+# states <- tigris::states()
+# states %>% as.data.frame() %>% select(NAME)
+# 
+# i <- 4
+# files_to_intersect
+# nonrural <- readRDS(files_to_intersect$nr_path[i])
+# blocks <- readRDS(paste0(savepath, savepath_1, "blocks_2018_nonruralTF_sf_", files_to_intersect$state[i], ".RDS"))
+# urban <- blocks %>% filter(nonruralTF == 1)
+# 
+# plot(states$geometry[14])
+# plot(nonrural$geometry, add = TRUE)
+# plot(urban$geometry, add = TRUE, col = "red")
+
+```
+
+texas only
+
+```{r}
+# Get Some Data
+con <- get_db_conn()
+tract_tables <- con %>%  
+  list_schema_tables("gis_census_cb") %>% 
+  filter(stringr::str_detect(table_name, "tract"))  %>% 
+  mutate(state = stringr::str_remove_all(table_name, "cb_2018_|_tract_500k"))
+
+tract_tables %>% filter(state == "48") # texas = row #44
+
+test_state_tracts_sf <- sf::st_read(con, query = paste0("SELECT * FROM gis_census_cb.", "cb_2018_48_tract_500k")) #cb_2018_48_tract_500k
+
+tracts <- test_state_tracts_sf
+
+tracts <- tracts %>% left_join(us_counties_x_urban, by = c( "STATEFP",  "COUNTYFP"))
+rural_cty_tracts <- tracts %>% filter(county_nonrural != 1 | is.na(county_nonrural))
+nonrural_cty_tracts <- tracts %>% filter(county_nonrural == 1 )
+nonrural <- readRDS(files_to_intersect$nr_path[53])
+nonrural_cty_tracts_polygons <- st_intersection(nonrural_cty_tracts, nonrural)
+
+saveRDS(nonrural_cty_tracts_polygons, file = paste0("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL_working/nonruralstate_2018_", "48","_nonruraltracts_polygons.RDS"))
+
+
+blocks <- readRDS("/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS/tl_2018_48_tabblock10.RDS")
+blocks <- blocks %>% left_join(us_counties_x_urban, by = c("STATEFP10" = "STATEFP", "COUNTYFP10" = "COUNTYFP"))
+rural_cty_blocks <- blocks %>% filter(county_nonrural != 1|is.na(county_nonrural))
+nonrural_cty_blocks <- blocks %>% filter(county_nonrural == 1)
+    
+blocks_nonrural_tract_vector <- st_intersects(nonrural_cty_blocks, nonrural_cty_tracts_polygons)
+nonrural_cty_blocks$nonruralTF <- blocks_nonrural_tract_vector %>% lengths > 0 
+    
+blocks <- rbind(rural_cty_blocks %>% mutate(nonruralTF = 0), nonrural_cty_blocks)
+    
+saveRDS(blocks, paste0(savepath, savepath_1, "blocks_2018_nonruralTF_sf_", "48", ".RDS"))
+    
+blocks_df <- blocks %>% as.data.frame() %>% select(STATEFP10, COUNTYFP10, TRACTCE10, BLOCKCE10, GEOID10, NAME10, nonruralTF)
+saveRDS(blocks_df, paste0(savepath, savepath_2, "blocks_2018_nonruralTF_df_", "48", ".RDS"))
+
+```
+
+
+## KENTUCKY - missing a nonrural shape
+
+```{r}
+rurality <- sf::st_read("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL/RD_BROADBAND_IELG_PRODUCTION.shp")
+
+states <- tigris::states()
+ky <- states %>% filter(STUSPS == "KY")
+
+rurality_ <- rurality %>% st_transform(st_crs(ky)) %>% st_buffer(0)
+
+for (i in 1) {
+  print(ky$STUSPS[i])
+  a <- Sys.time()
+  states_nonrural <- st_intersection(ky[i,], rurality_)
+  b <- Sys.time()
+  c <- as.character(as.integer((b-a)/60))
+  print(paste0((c), " minutes"))
+  saveRDS(states_nonrural, paste0("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL_working/nonrural_state_intersections/nonrural_states_polygon_", ky$STATEFP[i], ".RDS"))
+  
+}
+
+ky_nonrural <- readRDS(paste0("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL_working/nonrural_state_intersections/nonrural_states_polygon_", ky$STATEFP[1], ".RDS"))
+
+plot(ky$geometry)
+plot(ky_nonrural$geometry, add = TRUE)
+```
+
+Kentucky only
+
+```{r}
+# Get Some Data
+con <- get_db_conn()
+tract_tables <- con %>%  
+  list_schema_tables("gis_census_cb") %>% 
+  filter(stringr::str_detect(table_name, "tract"))  %>% 
+  mutate(state = stringr::str_remove_all(table_name, "cb_2018_|_tract_500k"))
+
+tract_tables %>% filter(state == "48") # texas = row #44
+
+tracts <- sf::st_read(con, query = paste0("SELECT * FROM gis_census_cb.", "cb_2018_21_tract_500k")) #cb_2018_21_tract_500k
+
+# tracts <- test_state_tracts_sf
+
+tracts <- tracts %>% left_join(us_counties_x_urban, by = c( "STATEFP",  "COUNTYFP"))
+rural_cty_tracts <- tracts %>% filter(county_nonrural != 1 | is.na(county_nonrural))
+nonrural_cty_tracts <- tracts %>% filter(county_nonrural == 1 )
+nonrural <- readRDS(files_to_intersect$nr_path[30])
+nonrural_cty_tracts_polygons <- st_intersection(nonrural_cty_tracts, nonrural)
+
+saveRDS(nonrural_cty_tracts_polygons, file = paste0("/project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RECONNECT_NON_RURAL_working/nonruralstate_2018_", "21","_nonruraltracts_polygons.RDS"))
+
+
+blocks <- readRDS("/project/biocomplexity/sdad/projects_data/usda/bb/original/censusblocks/blocks_TIGER2018_sf_RDS/tl_2018_21_tabblock10.RDS")
+blocks <- blocks %>% left_join(us_counties_x_urban, by = c("STATEFP10" = "STATEFP", "COUNTYFP10" = "COUNTYFP"))
+rural_cty_blocks <- blocks %>% filter(county_nonrural != 1|is.na(county_nonrural))
+nonrural_cty_blocks <- blocks %>% filter(county_nonrural == 1)
+    
+blocks_nonrural_tract_vector <- st_intersects(nonrural_cty_blocks, nonrural_cty_tracts_polygons)
+nonrural_cty_blocks$nonruralTF <- blocks_nonrural_tract_vector %>% lengths > 0 
+    
+blocks <- rbind(rural_cty_blocks %>% mutate(nonruralTF = 0), nonrural_cty_blocks)
+    
+saveRDS(blocks, paste0(savepath, savepath_1, "blocks_2018_nonruralTF_sf_", "21", ".RDS"))
+    
+blocks_df <- blocks %>% as.data.frame() %>% select(STATEFP10, COUNTYFP10, TRACTCE10, BLOCKCE10, GEOID10, NAME10, nonruralTF)
+saveRDS(blocks_df, paste0(savepath, savepath_2, "blocks_2018_nonruralTF_df_", "21", ".RDS"))
+
+```
+
+
+
+
+```{r}
+blocks_df_paths <- paste0(savepath, savepath_2, list.files(paste0(savepath, savepath_2)))
+
+datalist <- list()
+datalist <- lapply(X = blocks_df_paths, FUN = readRDS)
+
+data_blocks_df = do.call(rbind, datalist)
+table(data_blocks_df$nonruralTF)
+
+```
+
+
+
+
+
+

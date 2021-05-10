@@ -9,6 +9,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
+library(leaflet)
 ```
 
 ```{r}
@@ -177,7 +178,10 @@ scale_range_2 <- c(-.6, .6)
 
 pal_perc_fund <- colorNumeric("RdBu", domain = scale_range_2)
 
-counties %>% mutate(change_perc_fund_POSNEG = ifelse(change))
+counties <- counties %>% 
+  mutate(change_perc_fund_POSNEG = ifelse(change_perc_fund < 0, "3. NEGATIVE", ifelse(change_perc_fund > 0, "1. POSITIVE", "2. NONE")))
+
+pal_perc_fund <- colorFactor("RdYlBu", domain = counties$change_perc_fund_POSNEG)
 
 ```
 
@@ -186,8 +190,8 @@ counties %>% mutate(change_perc_fund_POSNEG = ifelse(change))
 leaflet(counties) %>%
 leaflet::addProviderTiles(leaflet::providers$CartoDB.Positron) %>%
   leaflet::addPolygons(data = counties, stroke = FALSE, fillOpacity = 1,
-    color = ~pal_perc_fund(change_perc_fund)) %>%
-  addLegend("bottomright", pal = pal_perc_fund, values = ~change_perc_fund,
+    color = ~pal_perc_fund(change_perc_fund_POSNEG)) %>%
+  addLegend("bottomright", pal = pal_perc_fund, values = ~change_perc_fund_POSNEG,
     title = "Change in % Fund",
     # labFormat = labelFormat(prefix = "$"),
     opacity = 1
@@ -196,23 +200,45 @@ leaflet::addProviderTiles(leaflet::providers$CartoDB.Positron) %>%
 ```
 
 
-MAP: CHANGE IN PERCENT PENETRATED 
+MAP: CHANGE IN PERCENT REMAINING 
+
+
+ INVESTIGATING 379 NAN values
+```{r}
+# counties %>% filter(!is.na(change_perc_elig)) %>% filter(is.na(change_perc_pen))
+```
 
 ```{r}
-hist(states$change_perc_pen)
-pal_perc_pen <- leaflet::colorNumeric(
-  palette = 'RdBu',
-  domain = states$change_perc_pen)
+# cc_final_comp_ANY %>% filter(state_fips == "31" & county_fips %in% c(109, 129))
+
+# example <- joshfile %>% filter(state_fips == "31" & county_fips %in% c(109, 129))
+# example %>% group_by(state_fips, county_fips, CC_ELIG_14, CC_ELIG_18) %>% summarise(pop = sum(pop_2010))
+```
+
+```{r}
+counties <- counties %>% mutate(change_perc_pen2 = ifelse(is.na(change_perc_pen), 0, change_perc_pen))
+```
+
+```{r}
+hist(counties$change_perc_pen2)
+# pal_perc_pen <- leaflet::colorNumeric(
+#   palette = 'RdBu',
+#   domain = states$change_perc_pen2)
+
+scale_range_3 <- c(0, .4)
+
+pal_perc_remain <- colorNumeric("#0000FF", domain = scale_range_3)
+
 ```
 
 
 ```{r}
-leaflet(states) %>%
+leaflet(counties %>% filter(change_perc_pen2 > 0)) %>%
 leaflet::addProviderTiles(leaflet::providers$CartoDB.Positron) %>%
-  leaflet::addPolygons(data = states, stroke = FALSE, fillOpacity = 1,
-    color = ~pal_perc_pen(change_perc_pen)) %>%
-  addLegend("bottomright", pal = pal_perc_pen, values = ~change_perc_pen,
-    title = "Change in % Fund",
+  leaflet::addPolygons(data = counties %>% filter(change_perc_pen2 > 0), stroke = FALSE, fillOpacity = 1,
+    color = ~pal_perc_remain(change_perc_pen2)) %>%
+  addLegend("bottomright", pal = pal_perc_remain, values = ~change_perc_pen2,
+    title = "Change in % Need",
     # labFormat = labelFormat(prefix = "$"),
     opacity = 1
   )
