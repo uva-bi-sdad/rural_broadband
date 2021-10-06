@@ -4,7 +4,7 @@
 # created: 18 Sept 21
 # updated: 30 Sept 21: Remove estmates for technology type, round of applications and application status
 # Re-compute the natinal level and region/area level estimates to include all tracts (not only in ReConnect Program)
-
+# updated: Oct 4 21: Added Second Chance Approved application status from Round_2 table into the summary tables
 # packages 
 
 library(data.table)
@@ -27,6 +27,8 @@ round1 <- st_read("~/../../../../project/biocomplexity/sdad/projects_data/projec
                   int64_as_string = TRUE)
 round2 <- st_read("~/../../../../project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/RUS_RC_Shapefiles_August2021/ReConnect_Round_2_Final/","ReConnect_Round_2_Final",
                   int64_as_string = TRUE)
+round2_program <- round2 %>% select(Applicat_2,Program__1)
+
 
 # the PFSA identifiers in each shapefile (Applicat_1, 146 total, Applicat_2, 172 total)
 # match perfectly with the excel file (Applicat_2, 318 total)
@@ -131,11 +133,16 @@ for(i in 1:length(pfsa2)){
 tract_intersect_round1_df <- rbindlist(tract_intersect_round1)
 # add round indicator
 tract_intersect_round1_df$round <- "1"
+tract_intersect_round1_df$Program__1<- 0
 tract_intersect_round2_df <- rbindlist(tract_intersect_round2)
 # add round indicator
 tract_intersect_round2_df$round <- "2"
+
+round2_df <- left_join(tract_intersect_round2_df,round2_program, by=c('pfsa'='Applicat_2'))
+round2_df <- round2_df %>% select(pfsa, GEOID10, prop_area, round, Program__1)
+round2_df <- unique(round2_df)
 # save
-tract_intersect_df <- rbind(tract_intersect_round1_df, tract_intersect_round2_df )
+tract_intersect_df <- rbind(tract_intersect_round1_df, round2_df, fill=TRUE)
 saveRDS(tract_intersect_df,file="tract_intersect_df.RDS")
 
 
@@ -424,6 +431,11 @@ tract_intersect_df <- tract_intersect_df %>% mutate(
   REJECTED = 1*(`Completion Status`=="Rejected"), 
   WITHDRAWN= 1*(`Completion Status`=="Withdrawn"))
 
+# application status
+tract_intersect_df <- tract_intersect_df %>% mutate(
+  SEC_CHANCE = 1*(Program__1 == "ReConnect Second Chance - FY 2020")
+)
+
 # function to take varname as input and call sumcompute for all years, subpopulation
 sumyear <- function(varname, year, type){
   if(type == "person") weightname <- 'population_'
@@ -457,7 +469,8 @@ sumyear <- function(varname, year, type){
     # with application status
     sumcompute(tract_intersect_df, paste0(varname,"_",year), paste0(varname,"_MOE_",year), weights = c('prop_area','APPROVED',paste0(weightname,year))),
     sumcompute(tract_intersect_df, paste0(varname,"_",year), paste0(varname,"_MOE_",year), weights = c('prop_area','REJECTED',paste0(weightname,year))),
-    sumcompute(tract_intersect_df, paste0(varname,"_",year), paste0(varname,"_MOE_",year), weights = c('prop_area','WITHDRAWN',paste0(weightname,year)))
+    sumcompute(tract_intersect_df, paste0(varname,"_",year), paste0(varname,"_MOE_",year), weights = c('prop_area','WITHDRAWN',paste0(weightname,year))),
+    sumcompute(tract_intersect_df, paste0(varname,"_",year), paste0(varname,"_MOE_",year), weights = c('prop_area','SEC_CHANCE',paste0(weightname,year)))
     
     ))
 }
@@ -479,7 +492,7 @@ sumtable <- function(varname, type){
                               "ReConnect West",
                               "ReConnect Round 1", "ReConnect Round 2",
                               "In RC and Fiber", "In RC and Fiber plus", "In RC and Non-fiber",
-                              "In RC Approved", "In RC Rejected", "In RC Withdrawn"
+                              "In RC Approved", "In RC Rejected", "In RC Withdrawn", "In RC 2nd Chance"
                               ))
   df$ACS_2019_est = signif(sumyear(varname, '2019', type), 3 )[,1]
   df$ACS_2019_moe = signif(sumyear(varname, '2019', type), 3 )[,2]
