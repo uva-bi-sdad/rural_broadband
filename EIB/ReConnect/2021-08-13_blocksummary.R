@@ -7,6 +7,8 @@ library(tidyverse)
 library(readxl)
 library(tigris)
 
+options(scipen=999)
+
 setwd("~/git/rural_broadband/EIB/ReConnect/")
 
 # read in ReConnect shapefiles
@@ -168,18 +170,18 @@ census_vars <-
     "P004003")
 
 varnames <-
-  c("Total	TOTAL POPULATION",
-    "Total	RACE",
-    "Total!!White alone RACE",
-    "Total!!Black or African American alone RACE",
-    "Total!!American Indian and Alaska Native alone RACE",
-    "Total!!Asian alone	RACE",
-    "Total!!Native Hawaiian and Other Pacific Islander alone RACE",
-    "Total!!Some Other Race alone RACE",
-    "Total!!Two or More Race RACE",
-    "Total	HISPANIC OR LATINO ORIGIN	",
-    "Total!!Not Hispanic or Latino	HISPANIC OR LATINO ORIGIN",
-    "Total!!Hispanic or Latino	HISPANIC OR LATINO ORIGIN")
+  c("TOTAL POPULATION",
+    "Total RACE",
+    "White alone",
+    "Black or African American alone",
+    "American Indian and Alaska Native alone",
+    "Asian alone",
+    "Native Hawaiian and Other Pacific Islander alone",
+    "Some Other Race alone",
+    "Two or More Race",
+    "Total HISPANIC OR LATINO ORIGIN",
+    "Not Hispanic or Latino",
+    "Hispanic or Latino")
 
 state_fips <- c( unique(state.fips$fips), 2, 15 )
 state_fips <- formatC(state_fips,width=2,flag=0)
@@ -216,11 +218,112 @@ block_intersect_final <- readRDS("block_intersect_final.RDS")
 #   technology (fiber, fiber+other, nonfiber),
 #   application status (approved/rejected/withdrawn, "second chance" approved),
 #   year (round 1 2019, round 2 2020)
+names(block_intersect_final)[5:16] <- varnames
+
+
+block_intersect_final2 <- block_intersect_final %>% mutate(
+  technology_type = case_when(`Technology` == "Fiber-to-the-Premises" ~ "Fiber-to-the-Premises Only",
+                              `Technology` %in% c("Fiber-to-the-Premises; Fixed Wireless - Licensed",
+                                                  "Fiber-to-the-Premises; Fixed Wireless - Licensed; Fixed Wireless - Unlicensed",
+                                                  "Fiber-to-the-Premises; Fixed Wireless - Unlicensed",
+                                                  "Fiber-to-the-Premises; Hybrid-Fiber-Coax",
+                                                  "Fiber-to-the-Premises; Hybrid-Fiber-Coax; Fixed Wireless - Licensed; Other",
+                                                  "Fiber-to-the-Premises; Hybrid-Fiber-Coax; Fixed Wireless - Unlicensed",
+                                                  "Fiber-to-the-Premises; Other") ~ "Fiber-to-the-Premises Plus Others",
+                              `Technology` %in% c("Fixed Wireless - Licensed",
+                                                  "Fixed Wireless - Licensed; Fixed Wireless - Unlicensed",
+                                                  "Fixed Wireless - Licensed; Fixed Wireless - Unlicensed; Other",
+                                                  "Fixed Wireless - Unlicensed",
+                                                  "Hybrid-Fiber-Coax; Fixed Wireless - Unlicensed",
+                                                  "Hybrid-Fiber-Coax; Other",
+                                                  "Other") ~ "No Fiber-to-the-Premises")
+)
+
+fwrite(block_intersect_final2,file="block_ReConnect_10-21-21.csv")
+
+fwrite(national_summary,file="block_national_summary.csv")
+fwrite(technology_summary,file="block_technology_summary.csv")
+fwrite(type_summary,file="block_race_summary.csv")
+
+
+table(block_intersect_final2$technology_type,useNA="always")
+#Fiber-to-the-Premises Only Fiber-to-the-Premises Plus Others          No Fiber-to-the-Premises 
+#  154065                             48225                             63928
+
+technology_summary <- block_intersect_final2 %>% group_by(technology_type) %>% summarize(
+  share_white = sum(`White alone`*`prop_area`)/sum(`Total RACE`*`prop_area`),
+  share_black = sum(`Black or African American alone`*`prop_area`)/sum(`Total RACE`*`prop_area`), 
+  share_american_indian = sum(`American Indian and Alaska Native alone`*`prop_area`)/sum(`Total RACE`*`prop_area`),
+  share_asian = sum(`Asian alone`*`prop_area`)/sum(`Total RACE`*`prop_area`),
+  share_native_hawaiian = sum(`Native Hawaiian and Other Pacific Islander alone`*`prop_area`)/sum(`Total RACE`*`prop_area`),
+  share_other = sum(`Some Other Race alone`*`prop_area`)/sum(`Total RACE`*`prop_area`),
+  share_two_more = sum(`Two or More Race`*`prop_area`)/sum(`Total RACE`*`prop_area`),
+  share_hispanic = sum(`Hispanic or Latino`*`prop_area`)/sum(`Total HISPANIC OR LATINO ORIGIN`*`prop_area`)
+)
+
+type_summary <- block_intersect_final2 %>% group_by(`Completion Status`) %>% summarize(
+  share_white = sum(`White alone`*`prop_area`)/sum(`Total RACE`*`prop_area`),
+  share_black = sum(`Black or African American alone`*`prop_area`)/sum(`Total RACE`*`prop_area`), 
+  share_american_indian = sum(`American Indian and Alaska Native alone`*`prop_area`)/sum(`Total RACE`*`prop_area`),
+  share_asian = sum(`Asian alone`*`prop_area`)/sum(`Total RACE`*`prop_area`),
+  share_native_hawaiian = sum(`Native Hawaiian and Other Pacific Islander alone`*`prop_area`)/sum(`Total RACE`*`prop_area`),
+  share_other = sum(`Some Other Race alone`*`prop_area`)/sum(`Total RACE`*`prop_area`),
+  share_two_more = sum(`Two or More Race`*`prop_area`)/sum(`Total RACE`*`prop_area`),
+  share_hispanic = sum(`Hispanic or Latino`*`prop_area`)/sum(`Total HISPANIC OR LATINO ORIGIN`*`prop_area`)
+)
+
+
 
 # compare to national race/ethnicity share (again using decennial Census)
-
+national_est <- get_decennial(geography = "us",
+                              variables = census_vars,
+                              output = "wide",
+                              year = 2010) 
+names(national_est)[3:14] <- varnames
+national_summary <- national_est %>% transmute(
+  share_white = `White alone`/`Total RACE`,
+  share_black = `Black or African American alone`/`Total RACE`, 
+  share_american_indian = `American Indian and Alaska Native alone`/`Total RACE`,
+  share_asian = `Asian alone`/`Total RACE`,
+  share_native_hawaiian = `Native Hawaiian and Other Pacific Islander alone`/`Total RACE`,
+  share_other = `Some Other Race alone`/`Total RACE`,
+  share_two_more = `Two or More Race`/`Total RACE`,
+  share_hispanic = `Hispanic or Latino`/`Total HISPANIC OR LATINO ORIGIN`
+)
 
 # --------------------------------------------------
+# make technology type groupings (Fiber-only, Fiber-plus-others, Non-Fiber)
+#Fiber-to-the-Premises 
+#   271
+#Fiber-to-the-Premises; Fixed Wireless - Licensed 
+#   2
+#Fiber-to-the-Premises; Fixed Wireless - Licensed; Fixed Wireless - Unlicensed 
+#   3
+#Fiber-to-the-Premises; Fixed Wireless - Unlicensed 
+#   5
+#Fiber-to-the-Premises; Hybrid-Fiber-Coax 
+#   6
+#Fiber-to-the-Premises; Hybrid-Fiber-Coax; Fixed Wireless - Licensed; Other 
+#   1
+#Fiber-to-the-Premises; Hybrid-Fiber-Coax; Fixed Wireless - Unlicensed 
+#   1
+#Fiber-to-the-Premises; Other 
+#   5
+#Fixed Wireless - Licensed 
+#   7
+#Fixed Wireless - Licensed; Fixed Wireless - Unlicensed 
+#   5
+#Fixed Wireless - Licensed; Fixed Wireless - Unlicensed; Other 
+#   2
+#Fixed Wireless - Unlicensed 
+#   3
+#Hybrid-Fiber-Coax; Fixed Wireless - Unlicensed 
+#   1
+#Hybrid-Fiber-Coax; Other 
+#   2
+#Other 
+#   4
+
 
 # new file: ACS 1-year tract-level estimates + MOE by technology, status, year
 #   downcast using decennial Census block population to weight population within each tract
