@@ -1,0 +1,25 @@
+"",2015-2019 ACS Est,2015-2019 ACS MOE
+National,0.393,0.000471
+Metropolitan (RUCA 1-3),0.376,0.00065
+Micropolitan (RUCA 4-6),0.474,0.0013
+Rural (RUCA 7-10),0.505,0.00151
+Northeast,0.393,0.000904
+Midwest,0.388,0.00163
+South,0.413,0.000657
+West,0.364,0.000567
+ReConnect Regions,0.493,0.00216
+ReConnect Metropolitan,0.464,0.00385
+ReConnect Micropolitan,0.478,0.00492
+ReConnect Rural,0.513,0.00332
+ReConnect Northeast,0.464,0.00509
+ReConnect Midwest,0.438,0.00341
+ReConnect South,0.529,0.00363
+ReConnect West,0.472,0.00867
+ReConnect Round 1,0.498,0.00289
+ReConnect Round 2,0.487,0.00324
+In RC and Fiber,0.513,0.00245
+In RC and Fiber plus,0.406,0.00643
+In RC and Non-fiber,0.489,0.00482
+In RC Approved,0.5,0.00332
+In RC Rejected,0.485,0.00278
+In RC Withdrawn,0.553,0.00899
