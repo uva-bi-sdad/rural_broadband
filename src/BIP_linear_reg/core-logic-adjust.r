@@ -184,6 +184,8 @@ unique_rusid[! unique_rusid %in% bip_project$rusid ]
 
 data.BIP2 <- left_join(data.BIP, bip_project[,c("rusid", "quantiles")])
 data.BIP2 <- left_join(data.BIP2, tech,  by = c("rusid" = "projectid"))
+data.BIP2 <- data.BIP2 %>% filter(sale_year >= 2005)
+
 
 saveRDS(data.BIP2,file=paste0(path,"BIP_linear_models/housing_BIP_060622.RDS"))
 fwrite(data.BIP2,file=paste0(path,"BIP_linear_models/housing_BIP_060622.csv"),row.names=FALSE)
