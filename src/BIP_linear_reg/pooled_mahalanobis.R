@@ -189,9 +189,9 @@ lm_results[[3]] <- get_lmresults(far_filter)
 
 saveRDS(lm_results,file="BIP_linear_reg/lm_results.RDS")
 
-####################################
+#####################################
 # LINEAR MODEL w/ fixed tract effects
-####################################
+#####################################
 
 # with census tract dummies
 dataset$geoid_tr <- substr(dataset$geoid_blk,1,11)
@@ -215,7 +215,7 @@ get_lmfixedresults <- function(filter){
   dataset_f <- dataset2[filter,]; Xmat_f <- Xmat2[filter,]
   model_tract = try(lm(log(dataset_f$sale_price) ~ -1 + Xmat_f + dataset_f$geoid_tr-1), silent = T)
   model_summ_tr = coef(summary(model_tract))
-  rownames(model_summ_tr) = sapply(rownames(model_summ_tr), function(k) substr(k, start = 5, stop = nchar(k)))
+  rownames(model_summ_tr) = sapply(rownames(model_summ_tr), function(k) substr(k, start = 7, stop = nchar(k)))
   model_summ_tr <- cbind(" "=rownames(model_summ_tr), model_summ_tr)
   confint <- as.data.frame(confint(model_tract, level = 0.90))
   model_summ_tr <- as.data.frame(model_summ_tr)
@@ -225,9 +225,12 @@ get_lmfixedresults <- function(filter){
           rownames_to_column('rn')) %>% 
     reduce(left_join, by = 'rn') %>%
     column_to_rownames('rn')
+  nobs <- c("Nobs", nobs(model_tract))
+  model_tr_res <- rbind(model_tr_res, nobs)
   return(model_tr_res)
 }
 lm_fixedresults <- list()
+
 lm_fixedresults[[1]] <- get_lmfixedresults(close_filter)
 lm_fixedresults[[2]] <- get_lmfixedresults(med_filter)
 lm_fixedresults[[3]] <- get_lmfixedresults(far_filter)
@@ -273,13 +276,13 @@ far_filter5 <- which( rowSums(is.na(Xmatch)) == 0 & year.class==5 & (dist_bip <=
 filters <- list(close_filter0,close_filter1,close_filter2,close_filter3,close_filter4,close_filter5,
                 med_filter0,med_filter1,med_filter2,med_filter3,med_filter4,med_filter5,
                 far_filter0,far_filter1,far_filter2,far_filter3,far_filter4,far_filter5)
-#model_match <- list()
-model_match <- readRDS("BIP_linear_reg/model_match.RDS")
+model_match <- list()
+#model_match <- readRDS("BIP_linear_reg/model_match.RDS")
 
 matchfun <- function(k){
   m.out <- Match(Y=Y[filters[[k]]], Tr=Tr[filters[[k]]], X=Xmatch[filters[[k]],],
                             exact=c(rep('TRUE',3),rep('FALSE',4)), Weight=2,
-                            ties=FALSE, replace=FALSE,version="fast")
+                            ties=FALSE, replace=FALSE, BiasAdjust=True)
   return(m.out)
 }
 
@@ -287,9 +290,9 @@ matchfun <- function(k){
 filters[[12]] <- filters[[12]][sample(x=1:length(filters[[12]]), size=3e5, replace=FALSE)]
 filters[[18]] <- filters[[18]][sample(x=1:length(filters[[18]]), size=3e5, replace=FALSE)]
 
-#system.time( model_match[[2]] <- matchfun(2) )
+system.time( model_match[[2]] <- matchfun(2) )
 #saveRDS(model_match,"BIP_linear_reg/model_match.RDS")
-for(k in 12:length(filters)){
+for(k in 1:length(filters)){
   model_match[[k]] <- matchfun(k)
   saveRDS(model_match,"BIP_linear_reg/model_match.RDS")
 }
@@ -299,9 +302,12 @@ model_match_df <- data.frame(
   dist = rep(c("0_10mi","5_15mi","10_20mi"),each=6),
   year = rep(c("05_06","07_08","09_10","11_12","13_14","15+"),3),
   est = sapply( model_match, function(x){x$est} ),
-  se = sapply( model_match, function(x){x$se.standard} )
+  #ai_se = sapply( model_match, function(x){x$se} ),
+  se = sapply( model_match, function(x){x$se.standard} ), 
+  wnobs = sapply( model_match, function(x){x$wnobs} ),
+  nobs = sapply( model_match, function(x){x$nobs})
 )
-fwrite(model_match_df,"BIP_linear_reg/model_match.csv",row.names = FALSE)
+fwrite(model_match_df,"BIP_linear_reg/model_match_df.csv",row.names = FALSE)
 
 
 

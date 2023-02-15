@@ -1,8 +1,8 @@
-#Tthis script computes intersections between ReConnect program shape files 
+# Tthis script computes intersections between ReConnect program shape files 
 # and ACS census tracts and creates summary tables for 2019
 
 # created: 18 Sept 21
-# updated: 30 Sept 21: Remove estmates for technology type, round of applications and application status
+# updated: 30 Sept 21: Remove estimates for technology type, round of applications and application status
 # Re-compute the natinal level and region/area level estimates to include all tracts (not only in ReConnect Program)
 # updated: Oct 4 21: Added Second Chance Approved application status from Round_2 table into the summary tables
 

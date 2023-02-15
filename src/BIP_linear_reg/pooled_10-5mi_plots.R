@@ -96,10 +96,10 @@ est_df['up25'] <- pooled_tr5[19:23, "95 %"]
 est_df$up25 <- as.numeric(est_df$up25) * 100
 
 colors <- c("base" = "#D55E00", "10mi" = "#56B4E9")
-shapes <- c('base' = 16, '10mi' = 15, "5mi" = 17)
+shapes <- c('Base w/ tract FEs' = 16, '10mi' = 15, "5mi" = 17)
 
 ggplot(data=est_df) + 
-  geom_pointrange(aes(x=var, y=est2, ymin=up2, ymax=low2, shape="base"), 
+  geom_pointrange(aes(x=var, y=est2, ymin=up2, ymax=low2, shape="Base w/ tract FEs"), 
                   color="black",position = position_nudge(x = -0.1)) + 
   geom_pointrange(aes(x=var, y=est20, ymin=up20, ymax=low20, shape="10mi"), 
                   color="black", position = position_nudge(x = 0.1)) + 
@@ -108,7 +108,7 @@ ggplot(data=est_df) +
   geom_hline(yintercept=0, linetype="dashed", color="grey70") +
   geom_vline(xintercept ="BIPxYEAR2009-10", linetype="dashed", color="grey70") +
   ylim(-20, 5) +
-  scale_shape_manual(name = "Legend", labels = c("Base", "10 mi", "5 mi"), values = c(16, 15, 17)) + 
+  scale_shape_manual(name = "Legend", values = shapes) + 
   labs(#title = "Estimated Coefficients on the Interactions between BIP and 2-year Dummies", 
        x="BIP x 2-Year Indicators", 
        y = "Estimate x 100")+

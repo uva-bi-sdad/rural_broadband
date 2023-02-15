@@ -146,8 +146,8 @@ model_res_tr <- list(model_summ_tr, confint) %>%
   column_to_rownames('rn')
 
 
-write_xlsx(list("model" = as.data.frame(model_res), "model_tract" = as.data.frame(model_res_tr)), 
-           paste0(path, "pool_res_052322.xlsx"))
+#write_xlsx(list("model" = as.data.frame(model_res), "model_tract" = as.data.frame(model_res_tr)), 
+#           paste0(path, "pool_res_052322.xlsx"))
 
 # save the residuals 
 omit <- model$na.action

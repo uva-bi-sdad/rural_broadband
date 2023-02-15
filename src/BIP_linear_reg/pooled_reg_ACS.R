@@ -223,5 +223,5 @@ rownames(model_summ) = sapply(rownames(model_summ), function(k) substr(k, start 
 model_summ <- cbind(" "=rownames(model_summ), model_summ)
 model_summ <- cbind(model_summ, confint(model, level = 0.90))
 
-write_xlsx(list("model" = as.data.frame(model_summ)), 
-           paste0(path, "pool_res_ACS_052022.xlsx"))
+#write_xlsx(list("model" = as.data.frame(model_summ)), 
+#           paste0(path, "pool_res_ACS_052022.xlsx"))
