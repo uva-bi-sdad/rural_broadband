@@ -184,6 +184,7 @@ get_acs_vars <- function(year, vars){
     foreign = B05002_013E / B05002_001E,
     median_income = B19013_001E,
     median_value = B25077_001E,
+    renters = B25003_003E / B25003_001E,
     median_yrbuilt = B25035_001E,
     bed_total = B25041_001E,
     bed_none = B25041_002E,
@@ -219,6 +220,9 @@ get_acs_vars <- function(year, vars){
                                               unemployment = B23025_005E/B23025_003E
                                             )
   )}
+  if(year >= 2019) {
+    acs_estimates$family <- B09019_003E / B09019_002E
+  }
   names(acs_estimates)[2:length(names(acs_estimates))] <-
     paste0(names(acs_estimates)[2:length(names(acs_estimates))],"_",year)
   return(acs_estimates)  
@@ -237,13 +241,16 @@ tracts_us2 <- tracts_us2 %>% left_join(acs_estimates_2018, by="GEOID")
 tracts_us2 <- dplyr::select(as.data.frame(tracts_us2), -geometry) # convert to data frame
 tracts_us2[is.na(tracts_us2)] <- NA # convert NaN to NA for consistency
 
-# adjust all income and home values to 2018 dollars
+# adjust all income and home values to 2019 dollars
 # (using BLS CPI data at https://www.usinflationcalculator.com/)
-adj_2018 <- 1
-adj_2015 <- 1.059
-adj_2013 <- 1.078
-adj_2010 <- 1.152
+adj_2019 <- 1
+adj_2018 <- 1.018
+adj_2015 <- 1.079
+adj_2013 <- 1.097
+adj_2010 <- 1.172
 
+tracts_us2$median_income_adj_2019 <- round(tracts_us2$median_income_2019 * adj_2019,0)
+tracts_us2$median_value_adj_2019 <- round(tracts_us2$median_value_2019 * adj_2019,0)
 tracts_us2$median_income_adj_2018 <- round(tracts_us2$median_income_2018 * adj_2018,0)
 tracts_us2$median_value_adj_2018 <- round(tracts_us2$median_value_2018 * adj_2018,0)
 tracts_us2$median_income_adj_2015 <- round(tracts_us2$median_income_2015 * adj_2015,0)
@@ -338,6 +345,8 @@ broadband_tract_data <- tracts_us7 %>% dplyr::select(
   RUCC_2013=RUCC_2013,
   RUCA_2010=RUCA_2010,
   RUCA_2010_SECONDARY=RUCA_2010_SECONDARY,
+  RUCA_RURAL,
+  RUCA_URBAN,
   acs_within_fcc200,
   acs_within_fcc10,
   acs_within_fcc,
@@ -347,10 +356,9 @@ broadband_tract_data <- tracts_us7 %>% dplyr::select(
   fcc2016_200max,
   fcc2011_providers_200,
   fcc2011_providers_3,
-  #eligible_broadband,
-  #eligible_infrastructure,
-  
+
   population_2010,
+  hunits_total_2010,
   hs_or_less_2010,
   poverty_2010,
   age_65_older_2010,
@@ -363,6 +371,7 @@ broadband_tract_data <- tracts_us7 %>% dplyr::select(
   median_value_adj_2010,
 
   population_2013,
+  hunits_total_2013,
   hs_or_less_2013,
   poverty_2013,
   age_65_older_2013,
@@ -377,6 +386,7 @@ broadband_tract_data <- tracts_us7 %>% dplyr::select(
   median_value_adj_2013,
   
   population_2015,
+  hunits_total_2015,
   hs_or_less_2015,
   poverty_2015,
   age_65_older_2015,
@@ -391,6 +401,7 @@ broadband_tract_data <- tracts_us7 %>% dplyr::select(
   median_value_adj_2015,
   
   population_2018,
+  hunits_total_2018,
   hs_or_less_2018,
   poverty_2018,
   age_65_older_2018,
@@ -480,5 +491,164 @@ fwrite( sumtable('unemployment','person'), file='summary/unemployment.csv' )
 fwrite( sumtable('family','household'), file='summary/family.csv' )
 fwrite( sumtable('median_income_adj','household'), file='summary/median_income.csv' )
 fwrite( sumtable('median_value_adj','household'), file='summary/median_value.csv' )
+
+
+
+
+
+
+
+
+
+
+# ----------------------------------------------------------------
+
+library(DBI)
+library(maps)
+library(sf)
+library(data.table)
+library(dplyr)
+
+options(scipen=999)
+setwd("~/git/rural_broadband/src/bipACS")
+
+library(tidycensus)
+census_api_key("853b2a1e71aa0aff0f3db966545e8898c73f0772")
+
+# add 2019 ACS data
+load("bip_acs.RData")
+
+acs_estimates_2019 <- get_acs_vars(2019, acs_vars)
+
+tract_data_new <- tracts_us7 %>% left_join(acs_estimates_2019, by="GEOID")
+
+# adjustments for inflation to 2019 dollars
+adj_2019 <- 1
+adj_2018 <- 1.018
+adj_2015 <- 1.079
+adj_2013 <- 1.097
+adj_2010 <- 1.172
+
+tract_data_new$median_income_adj_2019 <- round(tract_data_new$median_income_2019 * adj_2019,0)
+tract_data_new$median_value_adj_2019 <- round(tract_data_new$median_value_2019 * adj_2019,0)
+tract_data_new$median_income_adj_2018 <- round(tract_data_new$median_income_2018 * adj_2018,0)
+tract_data_new$median_value_adj_2018 <- round(tract_data_new$median_value_2018 * adj_2018,0)
+tract_data_new$median_income_adj_2015 <- round(tract_data_new$median_income_2015 * adj_2015,0)
+tract_data_new$median_value_adj_2015 <- round(tract_data_new$median_value_2015 * adj_2015,0)
+tract_data_new$median_income_adj_2013 <- round(tract_data_new$median_income_2013 * adj_2013,0)
+tract_data_new$median_value_adj_2013 <- round(tract_data_new$median_value_2013 * adj_2013,0)
+tract_data_new$median_income_adj_2010 <- round(tract_data_new$median_income_2010 * adj_2010,0)
+tract_data_new$median_value_adj_2010 <- round(tract_data_new$median_value_2010 * adj_2010,0)
+
+
+
+broadband_tract_data <- tract_data_new %>% dplyr::transmute(
+  STATEFP,
+  COUNTYFP,
+  TRACTCE,
+  GEOID,
+  ALAND,
+  AWATER,
+  BIP_IN,
+  BIP_PROP_AREA,
+  BIP_PROP_5MI,
+  BIP_PROP_10MI,
+  BIP_PROP_25MI,
+  BIP_PROP_50MI,
+  RUCC_2013=RUCC_2013,
+  RUCA_2010=RUCA_2010,
+  RUCA_2010_SECONDARY=RUCA_2010_SECONDARY,
+  RUCA_RURAL,
+  RUCA_URBAN,
+  acs_within_fcc200,
+  acs_within_fcc10,
+  acs_within_fcc,
+  fcc2011_200min,
+  fcc2011_200max,
+  fcc2016_200min,
+  fcc2016_200max,
+  fcc2011_providers_200,
+  fcc2011_providers_3,
+  
+  population_2010,
+  hunits_total_2010,
+  hs_or_less_2010,
+  renters_2010 = tenure_rent_2010 / tenure_total_2010,
+  poverty_2010,
+  age_65_older_2010,
+  hispanic_2010,
+  black_2010,
+  foreign_2010,
+  median_income_2010,
+  median_value_2010,
+  median_income_adj_2010,
+  median_value_adj_2010,
+  
+  population_2013,
+  hunits_total_2013,
+  hs_or_less_2013,
+  renters_2013 = tenure_rent_2013 / tenure_total_2013,
+  poverty_2013,
+  age_65_older_2013,
+  hispanic_2013,
+  black_2013,
+  family_2013,
+  foreign_2013,
+  unemployment_2013,
+  median_income_2013,
+  median_value_2013,
+  median_income_adj_2013,
+  median_value_adj_2013,
+  
+  population_2015,
+  hunits_total_2015,
+  hs_or_less_2015,
+  renters_2015 = tenure_rent_2015 / tenure_total_2015,
+  poverty_2015,
+  age_65_older_2015,
+  hispanic_2015,
+  black_2015,
+  family_2015,
+  foreign_2015,
+  unemployment_2015,
+  median_income_2015,
+  median_value_2015,
+  median_income_adj_2015,
+  median_value_adj_2015,
+  
+  population_2018,
+  hunits_total_2018,
+  hs_or_less_2018,
+  renters_2018 = tenure_rent_2018 / tenure_total_2018,
+  poverty_2018,
+  age_65_older_2018,
+  hispanic_2018,
+  black_2018,
+  family_2018,
+  foreign_2018,
+  unemployment_2018,
+  median_income_2018,
+  median_value_2018,
+  median_income_adj_2018,
+  median_value_adj_2018,
+
+  population_2019,
+  hunits_total_2019,
+  hs_or_less_2019,
+  renters_2019 = tenure_rent_2019 / tenure_total_2019,
+  poverty_2019,
+  age_65_older_2019,
+  hispanic_2019,
+  black_2019,
+  family_2019,
+  foreign_2019,
+  unemployment_2019,
+  median_income_2019,
+  median_value_2019,
+  median_income_adj_2019,
+  median_value_adj_2019
+)
+
+fwrite(broadband_tract_data, file="broadband_tract_data.csv")
 
 
