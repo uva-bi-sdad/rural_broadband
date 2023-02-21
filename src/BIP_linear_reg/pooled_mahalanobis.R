@@ -61,6 +61,7 @@ setwd("~/git/rural_broadband/src")
 # path to data in Rivanna project folder
 path <- "~/../../../../project/biocomplexity/sdad/projects_data/project_data/usda/rural_broadband/"
 
+
 dataset <- readRDS(paste0(path, "BIP_linear_models/housing_BIP_060622.RDS"))
 
 #hist(dataset$dist_bip, main="Distance to BIP", xlab="dist(mi)")
@@ -283,16 +284,31 @@ matchfun <- function(k){
   return(m.out)
 }
 
+model_match_test <- matchfun(1)
+
 # 12, 18 have too many samples causing matching to hang; random sample 300,000 from these
 filters[[12]] <- filters[[12]][sample(x=1:length(filters[[12]]), size=3e5, replace=FALSE)]
 filters[[18]] <- filters[[18]][sample(x=1:length(filters[[18]]), size=3e5, replace=FALSE)]
 
 #system.time( model_match[[2]] <- matchfun(2) )
 #saveRDS(model_match,"BIP_linear_reg/model_match.RDS")
-for(k in 12:length(filters)){
+for(k in 11:length(filters)){
   model_match[[k]] <- matchfun(k)
   saveRDS(model_match,"BIP_linear_reg/model_match.RDS")
 }
+
+names(model_match[[1]])
+length( model_match[[1]]$index.treated )
+length( model_match[[1]]$index.control )
+
+matchdata <- rbindlist(
+  lapply(model_match,function(l){
+    data.frame( cbind(Y=l$mdata$Y,
+          BIP=l$mdata$Tr,
+          l$mdata$X) )
+  })
+)
+
 
 #model_match <- readRDS("BIP_linear_reg/model_match.RDS")
 model_match_df <- data.frame(
