@@ -1,6 +1,7 @@
 # read new BIP data, subset to complete records
 library(sf)
 library(dplyr)
+library(data.table)
 
 setwd("~/git/rural_broadband/src/bipACS/")
 
